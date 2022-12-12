@@ -5,4 +5,8 @@
   コンポーネントは普通のビューと同じように.blade.phpファイルで定義できます！
 </x-my-alert>
 @endsection
-  
+@include('components.my-alert', [
+  'type'=>'success',
+  'alertTitle'=>'はじめてのコンポーネント',
+  'slot'=>'コンポーネントは普通のビューと同じように.blade.phpファイルで定義できます！'
+])
