@@ -22,6 +22,7 @@ Route::get('/hello', '\App\Http\Controllers\HelloController@index');
 use App\Http\Controllers\HelloController;
 Route::get('/hello/view', [HelloController::class, 'view']);
 Route::get('/hello/list', [HelloController::class, 'list']);
+//Route::redirect('/hello', '/hello/view', 301);
 
 use App\Http\Controllers\ViewController;
 Route::get('/view/escape', [ViewController::class, 'escape']);
@@ -37,3 +38,7 @@ Route::get('/view/style_class', [ViewController::class, 'style_class']);
 Route::get('/view/checked', [ViewController::class, 'checked']);
 Route::get('/view/master', [ViewController::class, 'master']);
 Route::get('/view/comp', [ViewController::class, 'comp']);
+
+use App\Http\Controllers\RouteController;
+Route::view('/route', 'route.view', ['name'=>'Laravel']);
+Route::get('/route/enum_param/{category}', [RouteController::class, 'enum_param']);
