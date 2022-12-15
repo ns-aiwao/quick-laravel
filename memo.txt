@@ -17,6 +17,9 @@ php artisan key:generate
 php artisan cache:clear
 再度起動します。
 
+※.envはGit管理されないみたい。（確かに環境設定だからな。。。）
+  それぞれローカルに作成、設定する。（なるほど）
+
 ★エラーWarning: require /public/../vendor/autoload.php): failed to open 
 stream: No such file or directory in 
 projects/laravel/github-laravel/public/index.phpの対処法
@@ -28,7 +31,7 @@ projects/laravel/github-laravel/public/index.phpの対処法
 
 対処法：
 composerを使ってバンドルをインストールする。
-
+$ composer update
 
 /********************************/
 
@@ -3825,8 +3828,31 @@ public function param(int $id)
 アクションメソッドにルートパラメタを受け取るための引数を用意するだけ。
 これによって、Laravelが自動的に対応する値を引数に割り当ててくれる。
 複数ある場合、それに応じて、引数も列挙する。
+==================================
 
-Route
+＠任意のルートパラメーター
+ルートパラメータは既定で必須の扱いとなる。
+よって「.../route/param」はマッチしない。
+任意パラメタを指定したい場合、パラメーター名の後に「?」を付与する。
+-----------------
+Route::get('/route/param/{id?}', [RouteController::class, 'param']);
+-----------------
+これにより{id}は任意となるので、「.../route/param/」もマッチする。
+-----------------
+パラメーターを任意とした場合、アクションの側で、既定値を明示しておかなくてはな
+らない。
+でないと、「Too few arguments to function...」のようなエラーとなる。
+-----------------
+public function param(int $id=1)
+{
+  ...
+}
+-----------------
+この場合、「.../route/param」のid値は1となる。
+==================================
+
+＠ルートパラメーターの制約
+
 
 
 

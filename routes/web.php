@@ -37,3 +37,6 @@ Route::get('/view/style_class', [ViewController::class, 'style_class']);
 Route::get('/view/checked', [ViewController::class, 'checked']);
 Route::get('/view/master', [ViewController::class, 'master']);
 Route::get('/view/comp', [ViewController::class, 'comp']);
+
+use App\Http\Controllers\RouteController;
+Route::get('/route/param/{id}', [RouteController::class, 'param']);
