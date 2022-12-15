@@ -42,3 +42,12 @@ Route::get('/view/comp', [ViewController::class, 'comp']);
 use App\Http\Controllers\RouteController;
 Route::view('/route', 'route.view', ['name'=>'Laravel']);
 Route::get('/route/enum_param/{category}', [RouteController::class, 'enum_param']);
+
+use App\Http\Controllers\CtrlController;
+Route::get('/ctrl/plain', [CtrlController::class, 'plain']);
+Route::get('/ctrl/test', [CtrlController::class, 'test']);
+Route::get('/ctrl/header', [CtrlController::class,'header']);
+
+Route::fallback(function() {
+    return view('route.error');
+});
