@@ -6,7 +6,7 @@ use Illuminate\Http\Request;
 
 class CtrlController extends Controller
 {
-  function plain()
+  public function plain()
   {
     return response('こんにちは、世界！', 200)
            ->header('Content-Type', 'text/plain');
@@ -20,7 +20,7 @@ class CtrlController extends Controller
     return view('ctrl.test', $data);
   }
 
-  function header()
+  public function header()
   {
     return response()
       ->view('ctrl.header', ['msg'=>'美織、愛してる！'], 200)
@@ -29,5 +29,39 @@ class CtrlController extends Controller
         'hage'=>'hoge',
         'garagara'=>'hebi',
       ]);
+  }
+
+  public function outJson()
+  {
+    return response()
+      ->json([
+        'name'=>'Yoshihiro, YAMADA',
+        'sex'=>'male',
+        'age'=>18,
+      ]);
+  }
+
+  public function download()
+  {
+    return response()
+      ->download(
+        'd:/iwao/tmp/neko.txt', 'neko.txt',
+        ['content-type'=>'text/plain']);
+  }
+
+  public function outImage()
+  {
+    return response()
+      ->file('d:/iwao/tmp/usagi.png', ['content-type'=>'image/png']);
+  }
+
+  public function redirectBasic()
+  {
+    return redirect('hello/list');
+  }
+
+  public function redirectRoute()
+  {
+    return redirect()->route('list');
   }
 }

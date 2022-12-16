@@ -23,6 +23,8 @@ use App\Http\Controllers\HelloController;
 Route::get('/hello/view', [HelloController::class, 'view']);
 Route::get('/hello/list', [HelloController::class, 'list']);
 //Route::redirect('/hello', '/hello/view', 301);
+Route::get('/hello/list', [HelloController::class, 'list'])
+    ->name('list');
 
 use App\Http\Controllers\ViewController;
 Route::get('/view/escape', [ViewController::class, 'escape']);
@@ -41,12 +43,18 @@ Route::get('/view/comp', [ViewController::class, 'comp']);
 
 use App\Http\Controllers\RouteController;
 Route::view('/route', 'route.view', ['name'=>'Laravel']);
+Route::get('/route/param/{id}', [RouteController::class, 'param']);
 Route::get('/route/enum_param/{category}', [RouteController::class, 'enum_param']);
 
 use App\Http\Controllers\CtrlController;
 Route::get('/ctrl/plain', [CtrlController::class, 'plain']);
 Route::get('/ctrl/test', [CtrlController::class, 'test']);
 Route::get('/ctrl/header', [CtrlController::class,'header']);
+Route::get('/ctrl/outJson', [CtrlController::class, 'outJson']);
+Route::get('/ctrl/download', [CtrlController::class, 'download']);
+Route::get('/ctrl/outImage', [CtrlController::class, 'outImage']);
+Route::get('/ctrl/redirectBasic', [CtrlController::class, 'redirectBasic']);
+Route::get('/ctrl/redirectRoute', [CtrlController::class, 'redirectRoute']);
 
 Route::fallback(function() {
     return view('route.error');
