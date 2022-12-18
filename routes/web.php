@@ -43,7 +43,9 @@ Route::get('/view/comp', [ViewController::class, 'comp']);
 
 use App\Http\Controllers\RouteController;
 Route::view('/route', 'route.view', ['name'=>'Laravel']);
-Route::get('/route/param/{id}', [RouteController::class, 'param']);
+Route::get('/route/param/{id}', [RouteController::class, 'param'])
+  ->name('param');
+
 Route::get('/route/enum_param/{category}', [RouteController::class, 'enum_param']);
 
 use App\Http\Controllers\CtrlController;
@@ -55,6 +57,10 @@ Route::get('/ctrl/download', [CtrlController::class, 'download']);
 Route::get('/ctrl/outImage', [CtrlController::class, 'outImage']);
 Route::get('/ctrl/redirectBasic', [CtrlController::class, 'redirectBasic']);
 Route::get('/ctrl/redirectRoute', [CtrlController::class, 'redirectRoute']);
+Route::get('/ctrl/redirectParam', [CtrlController::class, 'redirectParam']);
+Route::get('/ctrl/redirectAction', [CtrlController::class, 'redirectAction']);
+Route::get('/ctrl/redirectAway', [CtrlController::class, 'redirectAway']);
+Route::get('/ctrl', [CtrlController::class, 'index']);
 
 Route::fallback(function() {
     return view('route.error');

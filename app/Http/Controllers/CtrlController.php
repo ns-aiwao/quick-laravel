@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
+use Illuminate\Http\Response;
 
 class CtrlController extends Controller
 {
@@ -64,4 +65,34 @@ class CtrlController extends Controller
   {
     return redirect()->route('list');
   }
+  public function redirectParam()
+  {
+    return redirect()->route('param', ['id'=>108]);
+  }
+
+  public function redriectRoute()
+  {
+    return redirect()->route('param', ['id=>108']);
+  }
+
+  public function redirectAction()
+  {
+    return redirect()->action([RouteController::class, 'param'], ['id'=>108]);
+  }
+
+  public function redirectAway()
+  {
+    return redirect()->away('https://wings.msn.to/');
+  }
+
+  public function index(Request $req)
+  {
+    //return "リクエストパス：{$req->path()}";
+    return "リクエストパス：" . request()->path;
+  }
 }
+
+
+
+
+
