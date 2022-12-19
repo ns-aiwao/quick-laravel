@@ -61,6 +61,10 @@ Route::get('/ctrl/redirectParam', [CtrlController::class, 'redirectParam']);
 Route::get('/ctrl/redirectAction', [CtrlController::class, 'redirectAction']);
 Route::get('/ctrl/redirectAway', [CtrlController::class, 'redirectAway']);
 Route::get('/ctrl', [CtrlController::class, 'index']);
+Route::get('/ctrl/form', [CtrlController::class, 'form']);
+Route::post('ctrl/result', [CtrlController::class, 'result']);
+Route::get('/ctrl/upload', [CtrlController::class, 'upload']);
+Route::post('/ctrl/uploadfile', [CtrlController::class, 'uploadfile']);
 
 Route::fallback(function() {
     return view('route.error');

@@ -33,6 +33,43 @@ projects/laravel/github-laravel/public/index.phpの対処法
 composerを使ってバンドルをインストールする。
 $ composer update
 
+★ビューを利用する場合とそうでない場合
+----------------------------------
+・ビューを利用する場合：
+-----------------
+/* routes/web.php */
+Route::get('/animals/neko', [AnimalController::class, 'neko']);
+
+/* app/Http/Controllers/AnimalController.php {
+  function neko()
+  {
+    $data = [
+      'msg' => 'ねこまっしぐら',
+    ];
+    return view('animals.saru', $data); // ビュー(テンプレート）のパスを指定
+  }
+  
+/* resources/views/animal/neko.blade.php */
+<p>{{ $msg }}</p>
+
+-----------------
+のように、「ビュー経由で表示」する。
+
+----------------------------------
+・ビューを利用しない場合
+-----------------
+/* routes/web.php */
+Route::get('/animals/hebi', [AnimalController::class, 'hebi']);
+
+/* app/Http/Controllers/AnimalController */
+  function hebi()
+  {
+    return 'がらがらへび';
+  }
+-----------------
+のように、アクション（AnimalControllerのメソッド）の戻り値がそのまま表示される
+。
+  
 /********************************/
 
 ##### 速習Laravel6 （山田先生）##############################################
@@ -4184,5 +4221,239 @@ return respoinse()
     'Content-Type'=>'text/html',
     'X-Powered-FW'=>'Laravel9',
    ]);
-==================================   
+==================================
+
+＠JSON形式の出力を生成する
+responseメソッド経由でjsonメソッドを呼び出すことで、JSON形式の応答も生成できる
+。
+-----------------
+/* app/Http/Controllers/CtrlController.php */
+public function outJson()
+{
+  return response()
+    ->json([
+      'name'=>'Yoshihiro, YAMADA',
+      'sex'=>'male',
+      'age'=>18,
+  ]);
+}    
+-----------------
+JSONP形式の応答を生成するならば、さらにwithCallbackメソッドを呼び出す。
+-----------------
+  return response()
+    ->json([
+      ...
+     ])
+   ->withCallback('callback');
+-----------------
+結果：
+/**/callback("'name":"Yoshihiro, YAMADA", "sex":"mail", "age":18});
+----------------------------------
+＊配列を返すアクションメソッド
+ヘッダーの追加、JSONPへの整形が不要であれば、アクションの戻り値を（連想）配列
+形式としてもかまわない。
+配列形式の戻り値は、LaravelがJSON形式に変換した上で出力してくれる。
+上記の例は、以下のように書いても同じ。
+-----------------
+public function outJson()
+{
+  return [
+    'name'=>'Yoshihiro, YAMADA',
+    'sex'=>'male',
+    'age'=>18,
+  ];
+}
+==================================
+
+＠指定されたファイル／データをダウンロードする
+responseメソッド（Responseオブジェクト）経由でdownloadメソッドを呼び出す。
+-----------------
+/* app/Http/Controllers/CtrlController.php */
+public function outFile()
+{
+  return response()
+    ->downlowd('c:/data/data_log.csv', 'download.csv',
+      ['content-type'=>'text/csv']);
+}
+-----------------
+これで「c:/data/data_log.csv」を「download.csv」とう名前でダウンロードさせなさ
+い、という意味になる。
+-----------------
+（ファイルではなく）生成したデータをダウンロードさせたい場合には、streamDownlo
+adメソッドを利用する。
+-----------------
+/* app/Http/Controllers/CtrlController.php */
+public function outCsv()
+{
+  return response()
+    ->streamDownload(function() {
+      print(
+        "1,2022/10/1,123\n" .
+        "2,2022/10/2,116\n" .
+        "3,2022/10/3,98\n" .
+        "4,2022/10/4,102\n" .
+        "5,2022/10/5,134\n"
+      );
+    }, 'download.csv', ['content-type'=>'text/csv']);
+  }
+}
+-----------------
+downloadメソッドでは、第1引数にファイルパスを指定したところが、コールバック関
+数になっただけ。
+コールバック関数配下では、クライアントに送出すべきデータを出力する。
+（ここでは直接に文字列を指定しているが、もちろん、実際のアプリではデータベース
+などから動的に生成することになる。
+----------------------------------
+＊指定されたファイルを出力する
+fileメソッドを利用することで、ダウンロードする代わりに、指定されたファイルをそ
+のままブラウザに描画することもできる。
+-----------------
+/* app/Http/Controllers/CtrlController.php */
+public function outImage()
+{
+  return response()
+    ->file('d:/iwao/tmp/usagi.png', ['content-type'=>'image/png']);
+}
+==================================
+
+＠リダイレクト
+アクションを処理した後、（レスポンスを返すのではなく）任意にページをリダイレク
+トするならば、redirectメソッドを利用する。
+-----------------
+/* app/Http/Controllers/CtrlContoller.php */
+public function redirectBasic()
+{
+  return redirect('hello/list');
+}
+----------------------------------
+＊ルート名によるリダイレクト
+（パスではなく）ルート名でリダイレクト先を表すならば、redirect/routeメソッドを
+利用する。
+-----------------
+  return redirect()->route('list');
+-----------------
+/* routes/web.php */
+Route::get('/hello/list', [HelloController::class, 'list'])
+  ->name('list');
+-----------------
+ルートがなんらかのパラメーターを要求する場合には、routeメソッドに「名前=>値」
+形式でパラメーター情報を渡す。
+-----------------
+  return redirect()->route('param', ['id'=>108']);
+-----------------  
+ルートがなんらかのパラメーターを要求する場合には、routeメソッドに「名前=>値」
+形式でパラメーター情報を渡す。
+-----------------
+  return redirect()->route('param', ['id'=>108]);
+----------------------------------
+＊アクションへのリダイレクト
+actionメソッドを利用することで、アクションメソッドに対して処理をリダイレクトす
+ることも可能。
+第2引数経由でパラメーター情報を渡せる点もrouteメソッドと同じ。
+-----------------
+return rediret()->action([RouteController::class, 'param', ['id'=>108]);
+----------------------------------
+＊外部サイトへのリダイレクト
+他のサイトに移動したい場合はawayメソッドを使う。
+-----------------
+return redirect()->away('https://wings.msn.to/');
+==================================
+
+＠メンテナンスモード
+メンテナンスモードとは、Laravelアプリを一時的に休止するための仕組み。
+機能の更新／修正などで、一時的にアプリへのアクセスを遮断したい場合に利用できる
+。
+メンテナンスモードを有効にするには、以下のコマンドを実行するだけ：
+-----------------
+> php artisan down
+Application is now maintenance mode.
+-----------------
+この状態でアプリにアクセスすると、エラーページが表示される。
+-----------------
+標準的なエラーページではなく、特定のビューを表示する場合、以下のようにしてもよ
+い。
+-----------------
+> php artisan down --rendar  "maintain"
+Application is now maintenance mode.
+-----------------
+この場合、/resources/view/maintain.blade.phpが表示される。
+----------------------------------
+メンテナンス中に修正結果を反映するなどの目的で、メンテナンスモードをスキップし
+たいこともある。
+そのような場合は、シークレットキーを決めておくこともできる。
+-----------------
+> php artisan down --secret="12345"
+-----------------
+これで「http://localhost:8000/12345」でアプリにアクセスできるようになる。
+シークレットキーをクッキーに保存するので、以降はブラウザを閉じるまでアプリに自
+由にアクセスできる。
+----------------------------------
+＊シークレットキー
+シークレットキーは、一般的により分かり難い構成で指定すべき。
+また、利用できる文字は英数字とハイフン。
+URLで意味のある文字（例えば?など）は利用すべきではない。
+----------------------------------
+メンテナンスモードを解除するには、以下のコマンドを使う。
+-----------------
+> php artisan up
+Appliation is now live.
+==================================
+
+＠リクエスト
+Responseに対して、リクエスト情報を管理するならば、Requestクラス（Illuminate\Ht
+tp名前空間）を利用する。
+フォーム入力／クエリ情報をはじめ、リクエストヘッダー／パスなど、クライアントか
+ら送信された情報にアクセスするための手段を提供する。
+==================================
+
+＠Requestオブジェクトの基本
+Requestオブジェクトを利用するには、アクセスに対してRequest型の引数を追加するだ
+け。
+これによって、アクション呼び出しの際に、LaravelからRequestオブジェクトが渡され
+るようになる。
+-----------------
+/* app/Http/Controllers/CtrlController.php */
+use Illuminate\Http\Request;
+...
+public function index(Request $req)
+{
+  return 'リクエストパス：'. $req->path();
+}
+-----------------
+あるいは、requestヘルパーを利用して以下のように表してもよい。
+-----------------
+  return 'リクエストパス：' . request()->path();
+-----------------
+ここでは、Request#pathメソッドでリクエスト時のパスを取得しているが、Requestオ
+ブジェクトでは、他にも以下のようなメンバーを公開している。
+-----------------
+header(key[, def])：ヘッダー情報を取得
+hasHeader(key)：指定されたヘッダーが存在するか
+server(key [, def])：サーバー環境変数を取得
+root()：アプリの基底URLを取得
+url()：リクエストURLを取得（クエリ情報なし）
+fullUrl()：リクエストURLを取得
+path()：リクエストパスを取得
+is(ptrn）：リクエストURLが指定のパターンにマッチするか
+ip()：クライアントのIPアドレスを取得
+userAgent()：ユーザエージェントを取得
+-----------------
+Requestオブジェクトとルートパラメーターを同時に利用することもできる。
+これにはRequest型引数の後方に、ルートパラメーターを受け取るべき引数を配置する
+だけ。
+以下は、ルートパラメーターidを受け取るhogeアクションの例：
+-----------------
+pubilc function hoge(Request $request, $id)
+{
+  ...
+}
+==================================
+
+＠フォームからの入力
+
+
+
+
+
+
 
