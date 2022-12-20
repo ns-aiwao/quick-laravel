@@ -49,6 +49,7 @@ Route::get('/route/param/{id}', [RouteController::class, 'param'])
 Route::get('/route/enum_param/{category}', [RouteController::class, 'enum_param']);
 
 use App\Http\Controllers\CtrlController;
+use App\Http\Middleware\LogMiddleware;
 Route::get('/ctrl/plain', [CtrlController::class, 'plain']);
 Route::get('/ctrl/test', [CtrlController::class, 'test']);
 Route::get('/ctrl/header', [CtrlController::class,'header']);
@@ -65,6 +66,12 @@ Route::get('/ctrl/form', [CtrlController::class, 'form']);
 Route::post('ctrl/result', [CtrlController::class, 'result']);
 Route::get('/ctrl/upload', [CtrlController::class, 'upload']);
 Route::post('/ctrl/uploadfile', [CtrlController::class, 'uploadfile']);
+
+Route::group(['middleware'=>['debug',]], function() {
+  Route::get('/ctrl/middle', [CtrlController::class, 'middle']);
+});
+//Route::get('/ctrl/middle', [CtrlController::class, 'middle']);
+//  ->middleware(LogMiddleware::class);
 
 Route::fallback(function() {
     return view('route.error');

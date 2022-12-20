@@ -16,9 +16,11 @@ class LogMiddleware
      */
     public function handle(Request $request, Closure $next)
     {
-        file_put_contents('c:/data/access.log',
-          date('Y-m-d H:i:s') . "\n", FILE_APPEND);
-        // 次のミドルウェアを呼びだし
-        return $next($request);
+      file_put_contents('d:/aiwao/documents/tmp/laravel_access.log',
+        date('Y-m-d H:i:s') . "\n", FILE_APPEND);
+      
+      $response = $next($request);
+      $response->setContent(mb_strtoupper($response->content()));
+      return $response;
     }
 }

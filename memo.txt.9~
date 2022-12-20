@@ -4341,6 +4341,394 @@ Route::get('/hello/list', [HelloController::class, 'list'])
 -----------------
   return redirect()->route('param', ['id'=>108']);
 -----------------  
+ルートがなんらかのパラメーターを要求する場合には、routeメソッドに「名前=>値」
+形式でパラメーター情報を渡す。
+-----------------
+  return redirect()->route('param', ['id'=>108]);
+----------------------------------
+＊アクションへのリダイレクト
+actionメソッドを利用することで、アクションメソッドに対して処理をリダイレクトす
+ることも可能。
+第2引数経由でパラメーター情報を渡せる点もrouteメソッドと同じ。
+-----------------
+return rediret()->action([RouteController::class, 'param', ['id'=>108]);
+----------------------------------
+＊外部サイトへのリダイレクト
+他のサイトに移動したい場合はawayメソッドを使う。
+-----------------
+return redirect()->away('https://wings.msn.to/');
+==================================
+
+＠メンテナンスモード
+メンテナンスモードとは、Laravelアプリを一時的に休止するための仕組み。
+機能の更新／修正などで、一時的にアプリへのアクセスを遮断したい場合に利用できる
+。
+メンテナンスモードを有効にするには、以下のコマンドを実行するだけ：
+-----------------
+> php artisan down
+Application is now maintenance mode.
+-----------------
+この状態でアプリにアクセスすると、エラーページが表示される。
+-----------------
+標準的なエラーページではなく、特定のビューを表示する場合、以下のようにしてもよ
+い。
+-----------------
+> php artisan down --rendar  "maintain"
+Application is now maintenance mode.
+-----------------
+この場合、/resources/view/maintain.blade.phpが表示される。
+----------------------------------
+メンテナンス中に修正結果を反映するなどの目的で、メンテナンスモードをスキップし
+たいこともある。
+そのような場合は、シークレットキーを決めておくこともできる。
+-----------------
+> php artisan down --secret="12345"
+-----------------
+これで「http://localhost:8000/12345」でアプリにアクセスできるようになる。
+シークレットキーをクッキーに保存するので、以降はブラウザを閉じるまでアプリに自
+由にアクセスできる。
+----------------------------------
+＊シークレットキー
+シークレットキーは、一般的により分かり難い構成で指定すべき。
+また、利用できる文字は英数字とハイフン。
+URLで意味のある文字（例えば?など）は利用すべきではない。
+----------------------------------
+メンテナンスモードを解除するには、以下のコマンドを使う。
+-----------------
+> php artisan up
+Appliation is now live.
+==================================
+
+＠リクエスト
+Responseに対して、リクエスト情報を管理するならば、Requestクラス（Illuminate\Ht
+tp名前空間）を利用する。
+フォーム入力／クエリ情報をはじめ、リクエストヘッダー／パスなど、クライアントか
+ら送信された情報にアクセスするための手段を提供する。
+==================================
+
+＠Requestオブジェクトの基本
+Requestオブジェクトを利用するには、アクセスに対してRequest型の引数を追加するだ
+け。
+これによって、アクション呼び出しの際に、LaravelからRequestオブジェクトが渡され
+るようになる。
+-----------------
+/* app/Http/Controllers/CtrlController.php */
+use Illuminate\Http\Request;
+...
+public function index(Request $req)
+{
+  return 'リクエストパス：'. $req->path();
+}
+-----------------
+あるいは、requestヘルパーを利用して以下のように表してもよい。
+-----------------
+  return 'リクエストパス：' . request()->path();
+-----------------
+ここでは、Request#pathメソッドでリクエスト時のパスを取得しているが、Requestオ
+ブジェクトでは、他にも以下のようなメンバーを公開している。
+-----------------
+header(key[, def])：ヘッダー情報を取得
+hasHeader(key)：指定されたヘッダーが存在するか
+server(key [, def])：サーバー環境変数を取得
+root()：アプリの基底URLを取得
+url()：リクエストURLを取得（クエリ情報なし）
+fullUrl()：リクエストURLを取得
+path()：リクエストパスを取得
+is(ptrn）：リクエストURLが指定のパターンにマッチするか
+ip()：クライアントのIPアドレスを取得
+userAgent()：ユーザエージェントを取得
+-----------------
+Requestオブジェクトとルートパラメーターを同時に利用することもできる。
+これにはRequest型引数の後方に、ルートパラメーターを受け取るべき引数を配置する
+だけ。
+以下は、ルートパラメーターidを受け取るhogeアクションの例：
+-----------------
+pubilc function hoge(Request $request, $id)
+{
+  ...
+}
+==================================
+
+＠フォームからの入力
+
+HTMLフォームからの入力も、Requestオブジェクトから取得できる。
+以下は、入力された名前から文字列を生成するサンプル。
+-----------------
+/* app/Http/Controllers/CtrlController.php */
+public function form()
+{
+  return viwe('ctrl.form', ['result'=>'']);
+}
+-----------------
+/* resources/views/ctrl/form.blade.php */
+@extends('layouts.base')
+@section('title', 'フォームの基本')
+@section('main')
+<form method="POST" action="/ctrl/result">
+<!-- a.CSRF対策 -->
+@csrf
+<label id="name">名前：</label>
+<input id="name" name="name" type="text" value="">
+<input type="submit" value="送信">
+<p>{{ $result }}</p>
+</form>
+@endsection
+-----------------
+@csrfヘルパーを付与して生成されたフォームでは、以下のような隠しフィールドが生
+成される。
+-----------------
+<input type="hidden" name="_token"
+  value="N0CR85wWgUCT6Nr0cIZYwBRB4l4z09MqLtXlRv9k">
+-----------------
+これは入力値が正しいフォームから送信されているかを証明するための文字列で、ワン
+タイムトークンとも呼ばれる。
+アクションメソッドでは、あらかじめ手元で生成されたワンタイムトークンと、フォー
+ムから送信されたそれが一致するかを確認し、一致する場合だけデータを受け入れる。
+ワンタイムトークンはランダムに生成された文字列なので、第3者が推測することは困
+難。
+正しいトークンが送信されたということは正しいフォームから送信されたということに
+なる。
+最低限、入力フォームを生成する際は、@crsfディレクティブを配置すること。
+----------------------------------
+＊フォーム入力の処理
+-----------------
+public function result(Reques $req)
+{
+  <!-- a. リクエスト情報を取得 -->
+  $name = $req->name;
+  return view('ctrl.form', [
+    'result'=>'こんにちは、' . $name . 'さん！'
+  ]);
+}
+-----------------
+入力フォームからの送信値を取得するには、「$req->要素名」とするだけ。
+「要素名」はname属性で指定された名前。
+このように、入力フォームに応じてRequestオブジェクトに動的に付与されるプロパテ
+ィのことを動的プロパティという。
+-----------------
+もしも入力値がない場合の既定値を準備したいなら、inputメソッドを利用する。
+第2引数が既定値を表す。
+-----------------
+$name = $req->input('name', '名無権兵衛');
+----------------------------------
+＊resultアクションのルート定義
+resultアクションのルートは、<form method="POST">（= HTTP POST）経由で呼び出さ
+れることを想定している。
+よって、ルートも（Route::getではなく）Route::postメソッドで定義する。
+-----------------
+Route::post('/ctrl/result', [CtrlController::class, 'result']);
+----------------------------------
+＊特殊なinputメソッド
+汎用なinputメソッドのほかに、Requestオブジェクトでは、入力データを取得するため
+に、以下のようなメソッドを用意している。
+-----------------
+query：クエリ情報を取得（引数の省略時はすべてのクエリ情報を取得）
+boolean：真偽値として取得（1, "1", true, "true", "on", "yes"をすべてtrueとして
+取得。それ以外はfalse）
+date：日付オブジェクトとして取得
+-----------------
+query/booleanメソッドの構文は、inputメソッドと同じ。
+dateメソッドは以下の通り。
+-----------------
+$dt = $req->data('name', 'Y-m-d', 'Asia/Tokyo');
+-----------------
+第2、第3引数はそれぞれの日付の形式とタイムゾーン文字列。
+==================================
+
+＠ファイルのアップロード
+動的プロパティ構文を利用することで、アップロードされたファイルを受け取ることも
+できる。
+-----------------
+/* app/Http/Controllers/CtrlController.php */
+public function upload()
+{
+  return view('ctrl.upload', ['result'=>'']);
+}
+public function uploadfile(Request req)
+{
+  // b. ファイルが指定されているかを判定
+  if (!$req->hasFile('upfile')) {
+    return 'ファイルを指定してください。';
+  }
+  // a. ファイルを取得
+  $file = $req->upfile;
+  
+  // c. ファイルが正しくアップロードできているか
+  if (!file->isValid()) {
+    return 'アップロードに失敗しました。';
+  }
+  // d. オリジナルのファイル名を取得
+  $name = $file->getClientOriginalName();
+  // e. アップロードファイルを保存
+  $file->storeAs('files', $name);
+  return view('ctrl.upload', [
+    'result'=>$name . 'をアップロードしました。'
+  ]);
+}
+-----------------
+アップロードファイルを取得するには、ポストデータと同じく「$req->要素名」のよう
+に表す。
+取得する前に、そもそもファイルが存在するかを確認するなら、hasFileメソッドを利
+用する。
+isValidメソッドは、アップロードに成功したかを確認している。
+hasFile/isValidメソッドは、いずれかがfalseを返した場合は、処理を継続できないの
+で、エラーメッセージを返して、処理を終了する。
+-----------------
+「$req->要素名」の戻り値は、アップロードの場合はUploadFileクラス（Illuminate\H
+ttp名前空間）。
+UploadFileは、PHP標準のSplFileInfoクラスを拡張したクラウドサービスで、以下のよ
+うなメソッドを提供している。
+-----------------
+getClientOriginalName：オリジナルのファイル名
+getClientOriginalExtension：オリジナルのファイル拡張子
+getClientMimeType：オリジナルのファイルタイプ
+getClientSize：オリジナルのファイルサイズ
+getErrorMessage：アップロード時のエラー情報
+storeAs：ファイルを指定の場所に保存
+-----------------
+例では、getClientOriginalNameメソッドでオリジナルのファイル名を取得した後、そ
+の名前でサーバーに保存している。
+ファイルを保存するのはsaveAsメソッドの役割：
+-----------------
+storeAsメソッド
+storeAs(path, name)
+path：保存先のフォルダ（/strage/app/からの相対パス）
+name：保存時のファイル名
+-----------------
+この場合は、アップロードファイルを「/storage/app/files」フォルダ配下に保存する
+。
+==================================
+
+6.3 ミドルウェア
+
+＠ミドルウェアとは
+ミドルウェアとは、アクションメソッドの前後で付随的な処理を実行するための仕組み
+。
+フィルターを利用することで、アクションに付随する共通の処理、例えばロギングや認
+証といった機能をアクションごとに記述しなくても済むので、コードをより簡潔にでき
+る。
+==================================
+
+＠ミドルウェアの基本
+以下は、アクションを実行する都度、指定されたファイルに現在時刻を記録するLogMid
+dlewareの例：。
+----------------------------------
+[1]ミドルウェアを生成する
+> php artisan make:middleware LogMiddleware
+...
+-----------------
+これで、app/Http/Middlewareフォルダ配下にLogMiddleware.phpが生成される。
+以下は、access.logにアクセス時間を記録するためのコード：
+-----------------
+<?php
+namespace App\Http\Middleware;
+use Illuminate\Http\Request;
+use Closure;
+class LogMiddleware
+{
+  // a. ミドルウェアの実処理
+  public function handle(Request $request, Closure $next)
+  {
+    file_put_contents('c:/data/access.log',
+      date('Y-m-d H:i:s') . "\n", FILE_APPEND);
+      
+   // b. 次のミドルウェアを呼び出し
+   return $next($request);
+}
+-----------------
+ミドルウェアであることの条件は、handleメソッドを持つこと。
+-----------------
+handleメソッド
+handle(request, next)
+request：リクエスト情報
+next：クロージャ（Closure）
+-----------------
+一般的なミドルウェアでは引数request経由で、例えばアクション共通で利用するリク
+エスト変数（Requestオブジェクト経由でアクセスできるプロパティ）を登録するなど
+の処理を記述することになる。
+リクエスト変数を追加するには、mergeメソッドを利用する。
+-----------------
+$request->merveg([
+  'title'=>'速習Laravel',
+  'author'=>'YAMADA,Yoshihiro',
+]);
+-----------------
+handleメソッドでは、最後に引数next（クロージャ―）を呼び出し、戻り値として返す
+のが基本。
+これによって次のミドルウェア（存在しない場合は本来のアクション）が呼び出される
+。
+$nextの引数には、$request（リクエスト情報）を渡しておく。
+----------------------------------
+[2]アプリにミドルウェアを登録する
+ミドルウェアを定義した後は、どのアクションの前後で呼び出すのか、紐づけを設定し
+なければならない。
+これにはルーティング設定に対して、middlewareメソッドを追加するだけ。
+-----------------
+/* routes/web.php */
+use App\Http\Middleware\LogMiddleware;
+...
+Route::get('/ctrl/middle', [CtrlController::class, 'middle')
+  ->middleware(LogMiddleware::class);
+==================================  
+-----------------
+これで「/ctrl/middle」アクションを処理する際に、LogMiddlewareを呼び出す」とい
+う意味になる。
+一つのルートに対して複数のミドルウェアを紐づけたい場合は、カンマ区切りで指定す
+る。
+-----------------
+Route::get('/ctrl/middle', [CtrlController::class, 'middle'])
+  ->middleware(LogMiddleware::class, HogeMiddleware::class);
+-----------------
+[3]アクションを用意する
+/* app/Http/Controllers/CtrlController.php */
+public function middle()
+{
+  return 'log is recorded!!';
+}  
+==================================
+
+＠アクションの後処理
+厳密には、LogMiddlewareミドルウェアは、アクションの実行前に処理される。
+アクションの実行後に処理したい場合は、以下のようにhandleメソッドを表す。
+-----------------
+/* app/Http/Middleware/LogMiddleware.php */
+publi function handle(Request $request, Closure $next)
+{
+  // アクションの実行前にログを実行
+  file_put_contents('c:/data/access.og',
+    date('Y-m-d H:i:s') . "\n", File_APPEND);
+  // アクションを実行      
+  $response = $next($request);
+  // レスポンスの内容を加工
+  $response->setContent(mb_strupper($response->content()));
+  return $response;
+}
+-----------------
+アクションの後処理を行うには、$nextメソッドを呼び出して、その戻り値（Response
+オブジェクト）に対して処理を実行する。
+この例では、contentメソッドで受け取ったコンテンツを大文字にしたものを、setCont
+entメソッドでセットしなおしている。
+handleの最終的な戻り値は、加工後のResponseオブジェクトとする。
+-----------------
+この状態で「/ctrl/middle」を呼び出すと、「LOG IS RECORDED.」のような大文字化し
+た結果が得られる。
+
+
+
+
+    
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

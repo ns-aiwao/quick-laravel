@@ -7,6 +7,14 @@ use Illuminate\Http\Response;
 
 class CtrlController extends Controller
 {
+
+  public function __construct()
+  {
+    $this->middleware(function($request, $next) {
+      // 処理
+      return $next($request;)
+    });
+  }
   public function plain()
   {
     return response('こんにちは、世界！', 200)
@@ -126,7 +134,11 @@ class CtrlController extends Controller
     return view('ctrl.upload', [
       'result'=>$name . 'をアップロードしました。'
     ]);
+  }
 
+  public function middle()
+  {
+    return 'log is recorded.';
   }
 }
 

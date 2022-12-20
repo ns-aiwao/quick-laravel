@@ -4451,6 +4451,205 @@ pubilc function hoge(Request $request, $id)
 
 ＠フォームからの入力
 
+HTMLフォームからの入力も、Requestオブジェクトから取得できる。
+以下は、入力された名前から文字列を生成するサンプル。
+-----------------
+/* app/Http/Controllers/CtrlController.php */
+public function form()
+{
+  return viwe('ctrl.form', ['result'=>'']);
+}
+-----------------
+/* resources/views/ctrl/form.blade.php */
+@extends('layouts.base')
+@section('title', 'フォームの基本')
+@section('main')
+<form method="POST" action="/ctrl/result">
+<!-- a.CSRF対策 -->
+@csrf
+<label id="name">名前：</label>
+<input id="name" name="name" type="text" value="">
+<input type="submit" value="送信">
+<p>{{ $result }}</p>
+</form>
+@endsection
+-----------------
+@csrfヘルパーを付与して生成されたフォームでは、以下のような隠しフィールドが生
+成される。
+-----------------
+<input type="hidden" name="_token"
+  value="N0CR85wWgUCT6Nr0cIZYwBRB4l4z09MqLtXlRv9k">
+-----------------
+これは入力値が正しいフォームから送信されているかを証明するための文字列で、ワン
+タイムトークンとも呼ばれる。
+アクションメソッドでは、あらかじめ手元で生成されたワンタイムトークンと、フォー
+ムから送信されたそれが一致するかを確認し、一致する場合だけデータを受け入れる。
+ワンタイムトークンはランダムに生成された文字列なので、第3者が推測することは困
+難。
+正しいトークンが送信されたということは正しいフォームから送信されたということに
+なる。
+最低限、入力フォームを生成する際は、@crsfディレクティブを配置すること。
+----------------------------------
+＊フォーム入力の処理
+-----------------
+public function result(Reques $req)
+{
+  <!-- a. リクエスト情報を取得 -->
+  $name = $req->name;
+  return view('ctrl.form', [
+    'result'=>'こんにちは、' . $name . 'さん！'
+  ]);
+}
+-----------------
+入力フォームからの送信値を取得するには、「$req->要素名」とするだけ。
+「要素名」はname属性で指定された名前。
+このように、入力フォームに応じてRequestオブジェクトに動的に付与されるプロパテ
+ィのことを動的プロパティという。
+-----------------
+もしも入力値がない場合の既定値を準備したいなら、inputメソッドを利用する。
+第2引数が既定値を表す。
+-----------------
+$name = $req->input('name', '名無権兵衛');
+----------------------------------
+＊resultアクションのルート定義
+resultアクションのルートは、<form method="POST">（= HTTP POST）経由で呼び出さ
+れることを想定している。
+よって、ルートも（Route::getではなく）Route::postメソッドで定義する。
+-----------------
+Route::post('/ctrl/result', [CtrlController::class, 'result']);
+----------------------------------
+＊特殊なinputメソッド
+汎用なinputメソッドのほかに、Requestオブジェクトでは、入力データを取得するため
+に、以下のようなメソッドを用意している。
+-----------------
+query：クエリ情報を取得（引数の省略時はすべてのクエリ情報を取得）
+boolean：真偽値として取得（1, "1", true, "true", "on", "yes"をすべてtrueとして
+取得。それ以外はfalse）
+date：日付オブジェクトとして取得
+-----------------
+query/booleanメソッドの構文は、inputメソッドと同じ。
+dateメソッドは以下の通り。
+-----------------
+$dt = $req->data('name', 'Y-m-d', 'Asia/Tokyo');
+-----------------
+第2、第3引数はそれぞれの日付の形式とタイムゾーン文字列。
+==================================
+
+＠ファイルのアップロード
+動的プロパティ構文を利用することで、アップロードされたファイルを受け取ることも
+できる。
+-----------------
+/* app/Http/Controllers/CtrlController.php */
+public function upload()
+{
+  return view('ctrl.upload', ['result'=>'']);
+}
+public function uploadfile(Request req)
+{
+  // b. ファイルが指定されているかを判定
+  if (!$req->hasFile('upfile')) {
+    return 'ファイルを指定してください。';
+  }
+  // a. ファイルを取得
+  $file = $req->upfile;
+  
+  // c. ファイルが正しくアップロードできているか
+  if (!file->isValid()) {
+    return 'アップロードに失敗しました。';
+  }
+  // d. オリジナルのファイル名を取得
+  $name = $file->getClientOriginalName();
+  // e. アップロードファイルを保存
+  $file->storeAs('files', $name);
+  return view('ctrl.upload', [
+    'result'=>$name . 'をアップロードしました。'
+  ]);
+}
+-----------------
+アップロードファイルを取得するには、ポストデータと同じく「$req->要素名」のよう
+に表す。
+取得する前に、そもそもファイルが存在するかを確認するなら、hasFileメソッドを利
+用する。
+isValidメソッドは、アップロードに成功したかを確認している。
+hasFile/isValidメソッドは、いずれかがfalseを返した場合は、処理を継続できないの
+で、エラーメッセージを返して、処理を終了する。
+-----------------
+「$req->要素名」の戻り値は、アップロードの場合はUploadFileクラス（Illuminate\H
+ttp名前空間）。
+UploadFileは、PHP標準のSplFileInfoクラスを拡張したクラウドサービスで、以下のよ
+うなメソッドを提供している。
+-----------------
+getClientOriginalName：オリジナルのファイル名
+getClientOriginalExtension：オリジナルのファイル拡張子
+getClientMimeType：オリジナルのファイルタイプ
+getClientSize：オリジナルのファイルサイズ
+getErrorMessage：アップロード時のエラー情報
+storeAs：ファイルを指定の場所に保存
+-----------------
+例では、getClientOriginalNameメソッドでオリジナルのファイル名を取得した後、そ
+の名前でサーバーに保存している。
+ファイルを保存するのはsaveAsメソッドの役割：
+-----------------
+storeAsメソッド
+storeAs(path, name)
+path：保存先のフォルダ（/strage/app/からの相対パス）
+name：保存時のファイル名
+-----------------
+この場合は、アップロードファイルを「/storage/app/files」フォルダ配下に保存する
+。
+==================================
+
+6.3 ミドルウェア
+
+＠ミドルウェアとは
+ミドルウェアとは、アクションメソッドの前後で付随的な処理を実行するための仕組み
+。
+フィルターを利用することで、アクションに付随する共通の処理、例えばロギングや認
+証といった機能をアクションごとに記述しなくても済むので、コードをより簡潔にでき
+る。
+==================================
+
+＠ミドルウェアの基本
+以下は、アクションを実行する都度、指定されたファイルに現在時刻を記録するLogMid
+dlewareの例：。
+----------------------------------
+[1]ミドルウェアを生成する
+> php artisan make:middleware LogMiddleware
+...
+-----------------
+これで、app/Http/Middlewareフォルダ配下にLogMiddleware.phpが生成される。
+以下は、access.logにアクセス時間を記録するためのコード：
+-----------------
+<?php
+namespace App\Http\Middleware;
+use Illuminate\Http\Request;
+use Closure;
+class LogMiddleware
+{
+  // a. ミドルウェアの実処理
+  public function handle(Request $request, Closure $next)
+  {
+    file_put_contents('c:/data/access.log',
+      date('Y-m-d H:i:s') . "\n", FILE_APPEND);
+      
+   // b. 次のミドルウェアを呼び出し
+   return $next($request);
+}
+
+
+
+
+
+    
+
+
+
+
+
+
+
+
+
 
 
 
