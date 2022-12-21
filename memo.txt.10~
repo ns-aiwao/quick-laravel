@@ -4635,6 +4635,168 @@ class LogMiddleware
    // b. 次のミドルウェアを呼び出し
    return $next($request);
 }
+-----------------
+ミドルウェアであることの条件は、handleメソッドを持つこと。
+-----------------
+handleメソッド
+handle(request, next)
+request：リクエスト情報
+next：クロージャ（Closure）
+-----------------
+一般的なミドルウェアでは引数request経由で、例えばアクション共通で利用するリク
+エスト変数（Requestオブジェクト経由でアクセスできるプロパティ）を登録するなど
+の処理を記述することになる。
+リクエスト変数を追加するには、mergeメソッドを利用する。
+-----------------
+$request->merveg([
+  'title'=>'速習Laravel',
+  'author'=>'YAMADA,Yoshihiro',
+]);
+-----------------
+handleメソッドでは、最後に引数next（クロージャ―）を呼び出し、戻り値として返す
+のが基本。
+これによって次のミドルウェア（存在しない場合は本来のアクション）が呼び出される
+。
+$nextの引数には、$request（リクエスト情報）を渡しておく。
+----------------------------------
+[2]アプリにミドルウェアを登録する
+ミドルウェアを定義した後は、どのアクションの前後で呼び出すのか、紐づけを設定し
+なければならない。
+これにはルーティング設定に対して、middlewareメソッドを追加するだけ。
+-----------------
+/* routes/web.php */
+use App\Http\Middleware\LogMiddleware;
+...
+Route::get('/ctrl/middle', [CtrlController::class, 'middle')
+  ->middleware(LogMiddleware::class);
+==================================  
+-----------------
+これで「/ctrl/middle」アクションを処理する際に、LogMiddlewareを呼び出す」とい
+う意味になる。
+一つのルートに対して複数のミドルウェアを紐づけたい場合は、カンマ区切りで指定す
+る。
+-----------------
+Route::get('/ctrl/middle', [CtrlController::class, 'middle'])
+  ->middleware(LogMiddleware::class, HogeMiddleware::class);
+-----------------
+[3]アクションを用意する
+/* app/Http/Controllers/CtrlController.php */
+public function middle()
+{
+  return 'log is recorded!!';
+}  
+==================================
+
+＠アクションの後処理
+厳密には、LogMiddlewareミドルウェアは、アクションの実行前に処理される。
+アクションの実行後に処理したい場合は、以下のようにhandleメソッドを表す。
+-----------------
+/* app/Http/Middleware/LogMiddleware.php */
+publi function handle(Request $request, Closure $next)
+{
+  // アクションの実行前にログを実行
+  file_put_contents('c:/data/access.og',
+    date('Y-m-d H:i:s') . "\n", File_APPEND);
+  // アクションを実行      
+  $response = $next($request);
+  // レスポンスの内容を加工
+  $response->setContent(mb_strupper($response->content()));
+  return $response;
+}
+-----------------
+アクションの後処理を行うには、$nextメソッドを呼び出して、その戻り値（Response
+オブジェクト）に対して処理を実行する。
+この例では、contentメソッドで受け取ったコンテンツを大文字にしたものを、setCont
+entメソッドでセットしなおしている。
+handleの最終的な戻り値は、加工後のResponseオブジェクトとする。
+-----------------
+この状態で「/ctrl/middle」を呼び出すと、「LOG IS RECORDED.」のような大文字化し
+た結果が得られる。
+==================================
+
+＠ミドルウェアのさまざまな登録方法
+＊グローバルミドルウェア
+上記の例では、ミドルウェアを特定のルートに紐づけたが、アクション（コントローラ
+ー）に跨る共通処理を再利用する、という趣旨からすれば、個々のルートに都度登録す
+るのは面倒。
+そのような場合には、アプリ全体にミドルウェアを一括登録する（グローバルミドルウ
+ェア）。
+これには、app/Http/Kernel.phpを以下のように編集する。
+-----------------
+/* app/Http/Kernal.php */
+protected $midleware = [
+  ...
+  \Illuminate\Foundation\Http\Middleware\ConvertEmptyStringsToNull::class,
+  \App\Http\Middleware\LogMiddleware::class,
+];
+-----------------
+$middlewareプロパティ（配列）の末尾に、LogMiddlewareミドルウェアを追加するだけ
+。
+また、ルート単位のミドルウェア定義（web.phpのmiddlewareメソッド）は削除してお
+く。
+この状態で、アプリは以下の任意のパスにアクセスすると、access.logに現在時刻が記
+録される（=すべてのルートでLogMiddlewareが有効にされた）ことが確認できる。
+----------------------------------
+＊ミドルウェアグループ
+ミドルウェアの用途に応じて、グループ化することも可能。
+グループ化することで、デバッグ用途のミドルウェアをdebugグループにまとめて、グ
+ループとしてルートに紐づけできるようになる。
+グループ単位で有効／無効が切り替えられるので、ミドルウェアが増えてきても着脱が
+負担にならない。
+ミドルウェアを定義するには、Kernel.phpを以下のように編集する。
+-----------------
+/* app\Http\Kernel.php */
+protected $middlewareGroups = [
+  'web'=>[...],
+  'api'=>[...],
+  'debug'=>[
+    \App\Http\Middleware\LogMiddleware::class,
+  ],
+];
+-----------------
+$middlewareGroupsプロパティは、「グループ名=>ミドルウェア（群）」形式の連想配
+列。
+既定で、web, apiグループが用意されている。
+-----------------
+グループ登録ができたら、あとは、groupメソッドでルート単位にグループを紐づける
+。
+（グローバルミドルウェアと違って、自動で適用されるわけではない。
+-----------------
+/* routes/web.php */
+Route::group(['middleware'=>['debug']].function() {
+  Route::get('/ctr/middle', [CtrlController::class, 'middle']);
+});
+-----------------
+groupメソッド配下には、もちろん複数のルートを列挙可能。
+----------------------------------
+＊コントローラーでの登録
+コントローラー内（＝コントローラー内部での複数のアクション）でのみ適用するミド
+ルウェアであれば、コンストラクタ配下で定義してしまう方法もある。
+-----------------
+/* app/Http/Controllers/CtrlController.php */
+class CtrlController extends Controller
+{
+  public function __construct()
+  {
+    $this->middleware(function($request, $next) {
+      ...
+      return $next(request);
+    });    
+  }
+}
+-----------------
+特定のアクションに対してのみ（あるいは特定のアクションを除いて）、ミドルウェア
+を適用するならば、only/exceptメソッドを利用する。
+-----------------
+$this->middleware(function($request, $next) {
+  ...
+  return $next($request);
+})->only(['basic', 'basic2']);
+==================================
+
+Part 7 状態管理
+
+
 
 
 
