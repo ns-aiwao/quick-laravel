@@ -73,6 +73,9 @@ Route::group(['middleware'=>['debug',]], function() {
 //Route::get('/ctrl/middle', [CtrlController::class, 'middle']);
 //  ->middleware(LogMiddleware::class);
 
+use App\Http\Controllers\StateController;
+Route::get('/state/recCookie', [StateController::class, 'recCookie']);
+
 Route::fallback(function() {
     return view('route.error');
 });

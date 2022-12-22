@@ -4812,6 +4812,61 @@ HTTPはステートレス（状態を持たない）プロトコル。
 ==================================
 
 ＠クッキー
+ブラウザに簡単なテキスト情報を保存するならば、クッキーを利用する。
+ブラウザ標準の仕組みなので、JavaScriptとLaravel（PHP）間で、クッキーを共有する
+ことも可能。
+==================================
+
+＠クッキーの保存
+クッキーを保存するには、Responseオブジェクトのcookieメソッドを利用する。
+/* app/Http/Controllers/StateController.php */
+public function recCookie()
+{
+  return response()
+    ->view('state.view')
+    ->cookie('app_title', 'laravel', 60*24*30);
+}
+-----------------
+cookieメソッドの引数は、
+・名前
+・値
+・有効期限
+・パス
+・ドメイン
+・HTTPSのみで送信するか（true/false）
+有効期間を省略した場合には、ブラウザを閉じたタイミングでクッキーも削除される。
+----------------------------------
+＊値は暗号化される
+Laravelで発行されたクッキーは、クライアント（主にJavaScript）側で改ざんされな
+いよう暗号化された状態で保存される。
+発行したクッキーをJavaScript側と連携したいなど、暗号化を無効にしたい場合には、
+app/Http/Middlewareフォルダ配下のEncriptCookies.phpを編集する。
+-----------------
+/* app/Http/Middleware/EncryptCookies.php */
+protected $except = [
+  'app_title',
+];
+-----------------
+EncryptCookiesクラス配下に$exceptフィールド（配列）が用意されているので、配下
+に暗号化しないクッキーの名前を列記するだけ。
+----------------------------------
+＊クッキーの削除
+クッキーを明示的に削除するには、以下のような方法もある。
+-----------------
+/* app/Http/Controllers/StateController.php */
+public function recCookie() {
+  return response()
+    ->view('state.view')
+    ->withoutCookie('app_title');
+}
+-----------------
+Responseオブジェクトがない場合には以下のようにしてもよい。
+-----------------
+use Illuminate\Support\Facades\Cookie;
+...
+Cookie::expire('app_title');
+==================================
+
 
 
 
