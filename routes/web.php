@@ -62,19 +62,25 @@ Route::get('/ctrl/redirectParam', [CtrlController::class, 'redirectParam']);
 Route::get('/ctrl/redirectAction', [CtrlController::class, 'redirectAction']);
 Route::get('/ctrl/redirectAway', [CtrlController::class, 'redirectAway']);
 Route::get('/ctrl', [CtrlController::class, 'index']);
-Route::get('/ctrl/form', [CtrlController::class, 'form']);
-Route::post('ctrl/result', [CtrlController::class, 'result']);
+//Route::get('/ctrl/form', [CtrlController::class, 'form']);
+Route::get('ctrl/form', [CtrlController::class, 'form']);
+//Route::get('ctrl/result', [CtrlController::class, 'result']);
+Route::post('/ctrl/result', [CtrlController::class, 'result']);
 Route::get('/ctrl/upload', [CtrlController::class, 'upload']);
 Route::post('/ctrl/uploadfile', [CtrlController::class, 'uploadfile']);
 
-Route::group(['middleware'=>['debug',]], function() {
+/*Route::group(['middleware'=>['debug',]], function() {
   Route::get('/ctrl/middle', [CtrlController::class, 'middle']);
-});
+});*/
 //Route::get('/ctrl/middle', [CtrlController::class, 'middle']);
 //  ->middleware(LogMiddleware::class);
 
 use App\Http\Controllers\StateController;
 Route::get('/state/recCookie', [StateController::class, 'recCookie']);
+Route::get('/state/readCookie', [StateController::class, 'readCookie']);
+Route::get('/state/session1', [StateController::class, 'session1']);
+Route::get('/state/session2', [StateController::class, 'session2']);
+
 
 Route::fallback(function() {
     return view('route.error');

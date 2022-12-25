@@ -12,7 +12,7 @@ class CtrlController extends Controller
   {
     $this->middleware(function($request, $next) {
       // 処理
-      return $next($request;)
+      return $next($request);
     });
   }
   public function plain()
@@ -104,12 +104,26 @@ class CtrlController extends Controller
     return view('ctrl.form', ['result'=>'']);
   }
 
-  public function result(Request $req)
+  /*public function result(Request $req)
   {
     $name = $req->name;
     return view('ctrl.form', [
         'result'=>'こんにちは、' . $name . "さん！",
     ]);
+  }*/
+  public function result(Request $req)
+  {
+    $name = $req->name;
+    if (empty($name) || mb_strlen($name) > 10) {
+      return redirect('ctrl/form')
+        ->withInput()
+        ->with('alert', '名前は必須、または10文字以内で入力してください。');
+    }
+    else {
+      return view('ctrl.form', [
+        'result'=>'こんにちは、' . $name . 'さん！',
+      ]);
+    }
   }
 
   public function upload()

@@ -4796,6 +4796,248 @@ $this->middleware(function($request, $next) {
 
 Part 7 状態管理
 
+＠状態管理とは
+状態管理とは、複数ページ（アクション）間で情報を維持する仕組みのこと。
+HTTPはステートレス（状態を持たない）プロトコル。
+つまり、クライアントからの要求に対して、サーバが応答してそれで終わり。
+同じクライアントから次の要求を送信しても、サーバはこれを同じクライアントからの
+ものとはみなさない。
+-----------------
+そこでLaravelでは、複数の要求間で情報を維持するために、以下のような機能を提供
+している。
+-----------------
+・クッキー  ブラウザに保存する小さなテキスト情報
+・セッション  ファイル、データベースなどに情報を保存する仕組み
+・フラッシュ  現在と次のリクエストのみで保持される特別なセッション
+==================================
+
+＠クッキー
+ブラウザに簡単なテキスト情報を保存するならば、クッキーを利用する。
+ブラウザ標準の仕組みなので、JavaScriptとLaravel（PHP）間で、クッキーを共有する
+ことも可能。
+==================================
+
+＠クッキーの保存
+クッキーを保存するには、Responseオブジェクトのcookieメソッドを利用する。
+/* app/Http/Controllers/StateController.php */
+public function recCookie()
+{
+  return response()
+    ->view('state.view')
+    ->cookie('app_title', 'laravel', 60*24*30);
+}
+-----------------
+cookieメソッドの引数は、
+・名前
+・値
+・有効期限
+・パス
+・ドメイン
+・HTTPSのみで送信するか（true/false）
+有効期間を省略した場合には、ブラウザを閉じたタイミングでクッキーも削除される。
+----------------------------------
+＊値は暗号化される
+Laravelで発行されたクッキーは、クライアント（主にJavaScript）側で改ざんされな
+いよう暗号化された状態で保存される。
+発行したクッキーをJavaScript側と連携したいなど、暗号化を無効にしたい場合には、
+app/Http/Middlewareフォルダ配下のEncriptCookies.phpを編集する。
+-----------------
+/* app/Http/Middleware/EncryptCookies.php */
+protected $except = [
+  'app_title',
+];
+-----------------
+EncryptCookiesクラス配下に$exceptフィールド（配列）が用意されているので、配下
+に暗号化しないクッキーの名前を列記するだけ。
+----------------------------------
+＊クッキーの削除
+クッキーを明示的に削除するには、以下のような方法もある。
+-----------------
+/* app/Http/Controllers/StateController.php */
+public function recCookie() {
+  return response()
+    ->view('state.view')
+    ->withoutCookie('app_title');
+}
+-----------------
+Responseオブジェクトがない場合には以下のようにしてもよい。
+-----------------
+use Illuminate\Support\Facades\Cookie;
+...
+Cookie::expire('app_title');
+==================================
+
+＠クッキーの取得
+保存したクッキーを取得するには、Requestオブジェクトのcookieメソッドにアクセス
+するだけ。
+-----------------
+/* app/Http/Controllers/StateController.php */
+public function readCookie(Request $req)
+{
+  return view('state.readcookie', [
+    'app_title'=>$req->cookie('app_title')
+  ]);
+}
+-----------------
+/* resources/views/state/readcookie.blade.php */
+@extends ('layouts.base')
+@section('title', 'クッキー')
+@section('main')
+<p>{{ $app_title }}</p>
+@endsection
+==================================
+
+＠セッション
+セッションを利用することで、（一般的には）アプリを開いてからブラウザを閉じるま
+での期間で、情報を維持できる。
+アプリが起動している間の情報維持ならば、まずはセッションを優先して利用するとよ
+い。
+==================================
+
+＠セッション利用のための設定
+セッションを利用するための設定情報は、/config/session.phpで宣言されている。
+中身は、「設定名=>値」形式の連想配列。
+-----------------
+/* config/session.php */
+'driver'=>env('SESSION_DRIVER', 'file'),
+-----------------
+driverキーで、セッションの保存先を設定できる。
+デフォルトはfileで、保存先は/storage/framework/sessionsフォルダ。
+-----------------
+その他、用途に応じて、以下のような保存先（ドライバー）を設定できる。
+file：ファイル
+cookie：暗号化クッキー
+database：リレーショナルデータベース
+memchached/redis：キャッシュサーバ
+array：配列
+-----------------
+arrayは、テストのためのモード。
+保存先が配列なので、その場で内容を確認できるだけで、値がどこかに保存されるわけ
+ではない。
+==================================
+
+＠セッションの利用
+セッションを取得／設定するには、Requestオブジェクトのsessionメソッドを使う。
+-----------------
+/* app/Http/Controllers/StateController.php */
+public function session1(Request $req)
+{
+  $req->session()->put('series', '速習シリーズ');
+  return 'セッションを保存しました。';
+}
+public function session2(Request $req)
+{
+  $series = $req->session()->get('series', '未定');
+  return 'シリーズ：' . $series;
+}
+-----------------
+セッションに値を出し入れするには、sessionメソッド経由でput/getメソッドを呼び出
+すだけ。
+-----------------
+put/getメソッド
+put(name, value)
+get(name, default)
+name：名前
+value：値
+default：既定値
+-----------------
+引数defaultは、以下のように関数として表すことも可能。
+この場合、戻り値が既定値とみなされる。
+-----------------
+$series = $req->session()->get('series', function() {
+  return '未定';
+});  
+----------------------------------
+＊別解：session関数
+別解として、session関数を利用してもかまわない。
+-----------------
+session(['series'=>'速習シリーズ']);
+$series = session('series'), '未定');
+==================================
+
+＠データベースでのセッション管理
+セッションデータをデータベースで管理するには、あらかじめセッション保存のための
+sessionsテーブルを準備する必要がある。
+これには、以下のコマンドでマイグレーションファイルファイルを生成＆実行する
+-----------------
+> php artisan session:table
+> php artisan migrate
+-----------------
+生成されたミグレーションファイルは以下の通り。
+-----------------
+/* database/migrations/2022_04_07?084436_create_sessions_table.php */
+public function up()
+{
+  Schema::create('sessions', function(Blueprint $table) {
+    $table->string('id')->primary();
+    $table->foreignID('user_id')->nullable()->index();
+    $table->string('ip_address', 45)->nullable();
+    $table->text('user_agent')->nullable();
+    $table->text('payload');
+    $table->integer('last_activity')->index();
+  });
+}
+-----------------
+後は、.envからSESSION_DRIVERを修正するだけ。
+-----------------
+/* .env */
+SESSION_DRIVER=database
+-----------------
+.envを修正した場合には、開発サーバも再起動すること。
+==================================
+
+＠セッションのさまざまな操作
+put/getメソッドのほか、sessionオブジェクトには、以下のようなメソッドが用意され
+ている。
+-----------------
+all()  
+すべてのセッション値を取得
+-----------------
+pull(key, default)
+指定されたキーの値を取得した後、削除（defaultは既定値）
+-----------------
+has(key)
+指定されたキーが存在するかを判定（nullもfalse）
+-----------------
+exists(key)
+指定されたキーが存在するかを判定（nullはtrue）
+-----------------
+push(key, value)
+指定されたキー（配列）に値を追加
+-----------------
+forget(key)
+指定されたキーを削除
+-----------------
+flush()
+すべてのセッションデータを削除
+-----------------
+flash(key, value)
+指定されたキーをフラッシュデータとして追加
+-----------------
+reflash()
+フラッシュデータを次のページに持ち越し（すべて）
+-----------------
+keep([key, ...])
+フラッシュデータを次のページに持ち越し（指定のキー）
+-----------------
+regenerate()
+セッションIDの再生成
+-----------------
+フラッシュとは、現在と次のリクエストのみデータを維持する（それ以降は自動で削除
+される）特殊なセッション。
+例えばデータを登録／更新したときの、その結果をリダイレクト下先の画面で「～の保
+存に成功しました」のように表示したいケースがある。
+そのような短期間で消費されるメッセージの管理などで利用する。
+==================================
+
+＠フラッシュの利用例
+
+
+
+
+
+
+
 
 
 

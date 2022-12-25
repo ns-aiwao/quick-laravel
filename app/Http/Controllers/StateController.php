@@ -7,11 +7,31 @@ use Illuminate\Http\Response;
 
 class StateController extends Controller
 {
-  function recCookie()
+  public function recCookie()
   {
     return response()
       ->view('state.view')
       ->cookie('app_title', 'Laravel', 60*24*30);
   }
-    //
+
+  public function readCookie(Request $req)
+  {
+    return view('state.readcookie', [
+      'app_title'=>$req->cookie('app_title'),
+    ]);
+  }
+
+  public function session1(Request $req)
+  {
+    $req->session()->put('series', '速習シリーズ');
+    return 'セッションを保存しました。';
+  }
+
+  public function session2(Request $req)
+  {
+    $series = $req->session()->get('series', '未定');
+    return "シリーズ：{$series}";
+  }
+  
+
 }
