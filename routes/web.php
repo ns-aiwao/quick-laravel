@@ -81,6 +81,16 @@ Route::get('/state/readCookie', [StateController::class, 'readCookie']);
 Route::get('/state/session1', [StateController::class, 'session1']);
 Route::get('/state/session2', [StateController::class, 'session2']);
 
+use App\Http\Controllers\RecordController;
+Route::get('record/find', [RecordController::class, 'find']);
+Route::get('record/dump', [RecordController::class, 'dump']);
+Route::get('record/hasmany', [RecordController::class, 'hasmany']);
+
+use App\Http\Controllers\SaveController;
+Route::get('save/create', [SaveController::class, 'create']);
+Route::post('save', [SaveController::class, 'store']);
+//Route::get('save/create', 'SaveController@create');
+//Route::post('save', 'SaveController@store');
 
 Route::fallback(function() {
     return view('route.error');
