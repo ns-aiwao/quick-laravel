@@ -5897,3 +5897,133 @@ $fillableプロパティで宣言されていない項目をfillメソッドで�
 MassAsignmenteException例外が発生する。
 ==================================
 
+9.2 既存データの更新
+
+＠既存データの更新
+[1]ルート情報を追加する
+編集フォームを表示するためのsave/{id}/editルート、入力値に基づいて更新処理を実
+施する/save/{id}ルートを追加する。
+-----------------
+/* routes/web.php */
+Route::get('/save/{id}/edit, [SaveController::class, 'edit']);
+Route::patch('/save/{id}', [SaveController::class, 'update']);
+-----------------
+更新処理には、HTTP PATCHメソッド（=リソースの部分的な置換）を利用するのが一般
+的。
+これまで利用してきたPOSTは、リソースの新規作成を意味する。
+HTTP POSTでも動作はするが、意味的により正しいHTTPメソッドを選択することで、ル
+ートの役割が明確になる。
+----------------------------------
+＊resourceメソッド
+この節のサンプルで扱っているメソッドのルート定義は、resourceメソッドを利用する
+ことで、ひとつにまとめることもできる。
+Route::resource('/save', SaveController::class);
+----------------------------------
+[2]hello/listアクションを修正する
+/* resources/views/hello/list.blade.php */
+<table class="table">
+<tr>
+...
+<th>刊行日</th>
+<th><th>
+<tr>
+@foreach ($records as $record)
+<tr>
+...
+<td>{{ $record->published }}</td>
+<td>
+<a href="/save/{{ $record->id }}/edit">編集</a>｜
+<a href="/save/{{ $record->id }}">削除</a>
+</td>
+</tr>
+@endforeach
+</table>
+----------------------------------
+[3]編集フォームを作成する（アクションメソッド）
+/save/{id}/editルートによって呼び出される編集フォーム（アクションメソッド）を
+作成する。
+-----------------
+/* app/Http/Controllers/SaveController.php */
+public function edit($id)
+{
+  return view('save.edit', ['b'=>Book::findOrFail($id)]);
+}
+-----------------
+ルートパラメータidをキーにbooksテーブルを検索するのは、findOrFailメソッドの役
+割。
+findOrFailメソッドは、findメソッドとほぼ同じだが、唯一、目的のレコードが見つか
+らなった場合、ModelNotFoundExceptionを投げる。
+例外が処理されなかった場合、Laravelでは規定で404ページを出力する。
+取得したモデルオブジェクトは、後で編集フォームに反映できるようテンプレート変数
+に格納しておく。
+----------------------------------
+[4]編集フォームを作成する（テンプレート）
+/* resources/views/save/edit.blade.php */
+@extends('layouts.base)
+@section('title', '書籍情報フォーム（編集）')
+@secton('main')
+<form method="POST action="/save/{{$b->id}}">
+@csrf
+<!-- a.疑似的にHTTPメソッドを宣言 -->
+@method('PATCH')
+<div class="pl-2>
+<label id="isbn">ISBNコード：</label><br>
+<!-- b.現在値をテキストボックスに反映 -->
+<input id="isbn" name="isbn" type="text"
+  size="15! value="{{ old('isbn', $b->isbn) }}"
+>
+</div>
+...
+<div class="pl-2">
+<input type=submit" value="更新">
+</div>
+</form>
+@endsection
+-----------------
+ほぼcreate.blade.phpと同じだが、2点異なる点がある。
+まず、@methodディレクティブ。
+これは、以下のような隠しフィールドが生成される。
+-----------------
+<input type="hidden" name="_method" value="PATCH">
+-----------------
+HTML標準の<form>要素では、既定でHTTP GET/POSTにしか対応していない。
+が、save/{id}ルートはHTTP PATCHに紐づいている。
+そこで、@methodディレクティブで、便宜的にHTTP 
+PAtCHとして処理すべきことをLaravelに通知している。
+-----------------
+oldヘルパーの第二引数に、editアクションで取得したモデルオブジェクト経由で個々
+のフィールド値を取得し渡している。
+これにより、データベースの現在値をフォームに反映できる。
+----------------------------------
+[5]更新値をデータベースに書き戻す
+-----------------
+/* app/Http/Controllers/SaveController.php */
+public function update($req, $id)
+{
+  // 目的のデータを取得
+  $b = Book::findOrFail($id);
+  // 入力値でモデルを更新＆保存
+  $b->fill($req->except('_token', '_method')
+    ->save();
+  return redirect('hello/list');
+}
+-----------------
+モデルオブジェクトを生成しfillメソッドで値を詰め込み、保存するという流れは、
+storeアクションと同じ。
+が、
+・モデルオブジェクトは新規に生成する代わりにfindで取得している。
+・exceptメソッドは_tokenに加え_methodを除外している。
+点が異なる。
+更新でもデータベースに保存するのは、saveメソッドの役割。
+保存処理が成功した後は、redirectヘルパーで一覧画面にリダイレクトする。
+==================================
+
+  
+
+
+
+
+
+
+
+

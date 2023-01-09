@@ -5332,12 +5332,568 @@ callの引数は配列なので、複数のシーダーを登録するなら、�
 ==================================
 
 ＠モデルファクトリー
+開発環境などでは、大量のテストデータを準備するのは面倒。
+そのような場合、モデルファクトリーを利用することで、あらかじめ決められたルール
+でダミーのデータを自動生成できる。
+----------------------------------
+[1]モデルファクトリーを自動生成する
+以下のコマンドで生成できる。
+-----------------
+> php artisan make:factory BookFactory
+...
+-----------------
+ファクトリークラスの名前は「モデル名+Factory」0とする。
+これで、/database/factoriesフォルダ配下にBookfactory.phpが生成される。
+----------------------------------
+[2]モデルファクトリーを編集する
+ファクトリークラスの骨組みが生成されているので、データ生成のルールを定義する。
+生成ルールをあらわすのはdefinitionメソッド。
+-----------------
+/* database/factories/BookFactory.php */
+<?php
+namespace Database\Factories;
+use Illuminate\Database\Eloquent\Factories\Factory;
 
+class BookFactory extends Factory
+{
+  public function definition()
+  {
+    return [
+      'isbn'=>$this->faker->isbn13(),
+      'title'=>$this->fakcer->word(),
+      'price'=>$this^>faker->numberBetseen(200, 500),
+      'publiher'=>$this->faker->randomElement(
+        ['ジャパンIT', '優丸システム','走跳社', 'IT Emotion', 'テックcode']);
+      'published'=>$this->faker->dateTimeBetween('-5 years', 'now'),
+    ];
+  }
+}
+-----------------
+definitionメソッドは、「フィールド名=>データの生成ルール,...」形式の配列を返す
+ようにする。
+生成ルールw決めるのはFaker（$this->faker）ライブラリ。
+Fakerではルール生成のためのさまざまなメソッドが用意されている。
+-----------------
+isbn13  isbnコード（13桁）
+word  任意の単語
+numberBetween  指定範囲の数値
+randomElement  配列の任意の要素
+dateTimeBetween  指定範囲の日付時刻
+----------------------------------
+＊モデルファクトリーをモデルに紐づける
+モデルファクトリーをモデルクラスに紐づけるのはHasFactoryトレイトの役割。
+コマンドから自動生成している場合、以下の記述があるはず。
+-----------------
+class Book extends Model
+{
+  use HasFactory;
+  ...
+}
+----------------------------------
+[3]モデルファクトリーをシーダーに組み込む
+モデルファクトリーを準備できたら、これをシーダーから呼び出すようにする。
+-----------------
+/* databases/seeders/BookTaleSeeder.php */
+use App\Models\Book;
+...
+  public function run()
+  {
+    ...
+    Book::factory()->count(50->create();
+  }
+-----------------
+factoryメソッドでファクトリークラスをインスタンス化し、あとはcountメソッドで指
+定件数だけデータを生成し、createメソッドでデータベースに反映させる。
+----------------------------------
+[4]シーダーを実行する。
+同じようにシーダーを実行する。
+データベースにランダム生成されたデータが50件追加されていれば、モデルファクトリ
+ーは正しく動作している。
+-----------------
+> php artisan db:seed --class=BookTableSeeder
+==================================
 
+＠データの取得
+allメソッドは、いわゆる「SELECT * FROM table」。
+更に条件式を付けてデータを絞り込んだり、ソート、グループ化等も可能。
+==================================
 
+＠主キーで検索する
+findメソッドを利用することで、主キーでデータを検索できる。
+最も基本的な検索の手段。
+-----------------
+/* App/Http/Controllers/RecordController.php */
+public function find()
+{
+  return Book::find(1)->title;
+}
+-----------------
+Eloquent経由で取得したデータは、モデルオブジェクト（もしくはその配列）。
+「->title」は、取得したレコードのtitleフィールドを取得せよ、という意味。
+----------------------------------
+＊主キーを変更する
+Eloquentでは、既定でID列（int型、AUTO_INCREMENT）を主キーとみなす。
+この挙動を変更したい場合は、モデルクラスに対して、以下のようなコードを追加する
+。
+-----------------
+/* App/Models/Book.php */
+class Book extends Model
+}
+  protected $primarykey = 'isbn'; // 列名
+  protected $keyType = 'stringt'; //データ型
+  protected $incrementing = false; //自動連番
+}
+==================================
 
+＠任意の列でデータを検索する
+主キー以外の列をキーに検索することもできる。
+whereメソッドを使う。
+-----------------
+/* App/Http/Controllers/RecordController.php */
+public function where()
+{
+  $result = Book::where('publisher', '走跳社')->get();
+  return view('hello.list', ['records=>$result]);
+}
+-----------------
+whereメソッドには「列名」「検索値」の順に検索条件を渡す。
+whereメソッドの戻り値は、検索条件を組み立てるBuilderクラス。
+最終的な結果を得るには、getメソッドを呼び出す。
+-----------------
+getメソッドをfirstメソッドで置き換えた場合、検索結果の最初の1件だけを取得でき
+る。
+-----------------
+$result = Book:where('publisher', '走跳社')->first();
+return $result->title;
+==================================
 
+＠whereメソッドによる様々な検索
+whereは汎用的なメソッドで、引数に渡す条件次第で、さまざまな検索が可能。
+----------------------------------
+(1)大小比較
+whereメソッドには、列名、演算子、検索値を渡すこともできる。
+-----------------
+$result = Book::where('price', '<', 3000)->get();
+----------------------------------
+(2)部分一致検索
+部分一致検索（LIKE）も可能。
+「xxxx%」「%xxxx」とすれば、前方一致検索／後方一致検索も可能。
+-----------------
+$result = Book::where('title', 'LIKE', '%JAVA%')->get();
+----------------------------------
+(3)範囲検索
+「1,2,3のどれか」（IN）で検索する場合は、whereInメソッドを利用する。
+whereInの第2引数には、候補値を配列として渡す。
+-----------------
+$result = Book::whereIn('publisher',
+  ['ジャパンIT', '走跳社', 'IT Emotion'])->get();
+-----------------
+「m～nの範囲」（BETWEEN）で検索するならば、whereBetweenメソッドもある。
+-----------------
+$result = Book:whereBetween('price', [1000, 3000])->get();
+-----------------
+いずれのメソッドにも、NOT条件を表すwhereNotIn/whereNotBetweenメソッドが用意さ
+れている。
+----------------------------------
+(4)NULLチェック
+NULLであるかどうかを判定するならば、whereNull/whereNotNullメソッドを利用する。
+-----------------
+$result = Book::whereNull('publisher')->get()
+----------------------------------
+(5)日付検索
+日付／時刻型の列で検索する際には、whereDate/whereYear/whereMonth/whereDay/wher
+etimeなどのメソッドも便利。
+日付、年月日、時刻と、検索値に応じて使い分ける。
+-----------------
+$result = Book::whereYear('published', '2022')->get();
+-----------------
+whereと同じく、演算子指定の検索も可能。
+-----------------
+$result = Book:whereYear('published', '<', '2022')->get();
+----------------------------------
+(6)AND/OR条件
+whereメソッドを複数呼び出した場合、条件式はAND演算子で接続される。
+-----------------
+$result = Book:where('publisher', '走跳社')->where('price', '<', 3000)->get();
+-----------------
+OR検索を行うには、orWhereメソッドを利用する。
+-----------------
+$result = Book:where('publisher', '走跳社')
+            ->orWhere('price', '<', 2500)
+            ->get();
+----------------------------------
+(7)生の条件式
+WHERE句が複雑になってくると、where/orWhereを連ねるより、生の条件式で表した方が
+コードが見やすい場合がある。
+その場合は、whereRawメソッドの利用も考えるべき。
+-----------------
+$result = Book::whereRaw(
+  'publisher => ? AND price <?', ['走跳社', 3000,])->get();
+-----------------
+?はプレースホルダー。
+?には、第2引数の配列が順に埋め込まれる。
+==================================
 
+＠SELECT命令のその他の句
+そのほか、一般的なSELECT命令で利用できる、さまざまな句に対応している。
+----------------------------------
+＊データの並べ替え
+orderByメソッドを利用する。
+引数は、「ソート列」「並び順（asc/desc）」。
+複数のソートキーがある場合、orderByメソッドを列挙する。
+以下は、価格（降順）、刊行日（昇順）にソートする例。
+-----------------
+$result = Book::orderBy('price', 'desc')->orderBy('publised','asc')->get();
+----------------------------------
+＊特殊な並び替え
+orderByのほかにも、以下のようなメソッドを利用することで、特定目的の並び替えを
+簡単に実装できる。
+-----------------
+latest  最近作成された順（created_atカラム降順）
+oldest  作成された順（created_atカラム昇順）
+inRandomOrder  ランダムソート
+----------------------------------
+＊取得範囲の指定
+offset/limitメソッドを利用することで、m～n件目のデータを取り出せる。
+以下は、刊行日でソートした後、先頭から3～5件目のデータを取得する例。
+-----------------
+$result = Book::orderBy('published', 'desc')->offset(2)->limit(3)->get();
+-----------------
+offsetで先頭2件をスキップし、そこから3件分のデータを取得。
+並び替えが行われていないと意味がないので、orderByとセットで利用するのが一般的
+----------------------------------
+＊取得列の制約
+selectメソッドを利用することで、取得列を制限できる。
+（seletメソッドを明示しなかった場合、すべての列を無条件に取得する）。
+-----------------
+$result = Book::select('title', 'publisher')->get();
+----------------------------------
+＊データのグループ化
+groupByメソッドを利用する。
+以下は、出版社でグループ化し、価格の平均を求める例。
+-----------------
+$result = Book:groupBy('publisher')
+  ->selectRaw('publisher', ABG(price) AS price_arg')->get();
+-----------------
+selectRawメソッドは、whereRawメソッドのselect番号。
+取得列の生の式で表す。
+取得列に集計関数／別名などが含まれる場合に利用する。
+----------------------------------
+＊グループ化列の絞り込み
+havingメソッドを利用する（HAVING句に相当）。
+構文はwhereメソッドに順ずる。
+-----------------
+$result = Book::groupBy('publisher')
+  ->having('price_avg', '<', 2500)
+  ->selectRaw('publisher, AVG(price) AS price_avg')->get();
+----------------------------------
+＊データの集計
+よりシンプルな集計であれば、avg/count/min/maxメソッドを利用してもよい。
+-----------------
+$result = Book::where('publisher', '走跳社')->max('price');
+-----------------
+集計メソッドは、そのまま集計値を返すので、get/firstメソッドは不要。
+----------------------------------
+＊条件句の事前定義（スコープ）
+データベースに関わるコードでは、似たような条件句が登場することがよくある。
+そのような繰り返しを割けるのがスコープという仕組み。
+モデルに対して、以下のようなメソッド（スコープメソッド）を準備する。
+-----------------
+/* App/Models/Book.php */
+class Book extends Model
+{
+  ...
+  // a. publishedスコープを定義
+  public function scopePublished($query)
+  {
+    $query->where('published', '<=', now());
+  }
+}
+-----------------
+/* App/Http/Controllers/RecordController.php */
+  // b. publishedスコープで絞り込み
+  $result = Book:published()->get();
+-----------------
+スコープメソッドであることの条件は以下の通り：
+・引数としてBuilderオブジェクト（$query）を受け取る
+・戻り値は無し（void）
+・名前はscopeで始まること。
+-----------------
+この例であれば、渡されたBuilderオブジェクトに対して、whereメソッドで「publishe
+d <= ...」のような条件句を追加するpublishedスコープを定義したことになる。
+定義済みのスコープを実際に呼び出しているのは、bのコード。
+メソッドから接頭辞（scope）を取り除いた名前で、他のメソッドと同じように呼び出
+せる。
+----------------------------------
+＊動的スコープ
+スコープでは独自の引数を受け取ることもできる。
+その場合は、スコープメソッドの第2引数で受け取るようにする。
+例えば、以下のように定義されたpublisherスコープは、「Book::publisher('走跳社')
+」のように呼び出さる。
+-----------------
+public function scopePublisher($query, $name)
+{
+  $query->where('publsher', $name);
+}
+----------------------------------
+＊生のSQL命令を発行する
+Eloquentは、優れたライブラリだが、直接SQLを利用できた方が早い、複雑なSQLをEloq
+uentに渡すのは冗長、などの問題もある。
+そのような場合は、Eloquentにこだわらず、より低レベルなDBクラスの利用が推奨され
+る。
+例えは、hello/listアクションの場合、以下のような書き換えが可能。
+-----------------
+/* App/Http/Controllers/HelloController.php */
+use Illuminate\Support\Facades\DB;
+...
+public function list()
+{
+  // booksテーブルから全業を取得
+  $data = [
+    'records'=>DB::select('SELECT * FROM books'),
+  ];
+  return view('hello.list', $data);
+}
+-----------------
+モデルクラスを利用していないので、アクセスまでの準備も簡単。
+用途に応じて、DBクラス、Eloquentを使い分けること。
+-----------------
+発行する命令に応じて、insert/update/deleteメソッドも用意されている。
+==================================
 
+＠SQL命令の確認（デバッグ）
+dump/ddメソッドを用いることで、Eloquent内部で自動生成されているSQL命令を確認で
+きる。
+-----------------
+/* App/Http/Controllers/RecordController.php */
+$result = Book::groupBy('publsher')
+  ->having('price_arg', '<' 2500)
+  ->selectRaw('publisher, AVG(price as price_arg')
+  ->dump()->get();
+-----------------
+dumpメソッドは、デバッグ文字列を出力した後も、そのまま処理を継続する。
+デバッグ文字列を出力したところで処理を中断したい場合、ddメソッドを利用する。
+==================================
+
+＠リレーション
+一般的なデータベースでは、一つの情報を複数のテーブルに分割して表すのが一般的。
+例えば、書式情報と著者／レビューなどの情報をまとめてしまうことはない。
+書式／レビューと目的に応じてテーブルを分割し、キーで紐づける。
+Eloquentでは、リレーションを介したデータアクセスを簡単化する方法を提供している
+。
+==================================
+
+＠テーブル、モデルの準備
+リレーションはhasOne、hasMany、belongsToManyなどに分類できるが、ここではhasMan
+y関係を例とする。
+booksテーブルに関係するreviewsテーブルを用意する。
+-----------------
+id  BIGINT
+レビューid（主キー／自動連番）
+-----------------
+book_id  BIGINT（紐づく書籍（外部キー）
+-----------------
+name  VARCHAR  レビュアー名
+-----------------
+body  TEXT  レビュー本文
+-----------------
+create_at  TIMESTAMP  データ作成日
+-----------------
+update_at  TIMESTAMP  データ更新日
+-----------------
+注目すべきは、book_id列。
+Eloquentは、暗黙的に「参照先のモデル名_id」を外部キーとみなす。
+book_id列の値は、booksテーブルの主キー列（id）の値に対応していなければならない
+。
+==================================
+
+＠モデルの定義
+以下のコマンドで、reviewsテーブルに対応するReviewモデルを生成する。
+-----------------
+>php artisan make:model Review
+...
+-----------------
+ただし、リレーションを扱うには、自動生成されたコードを少し編集する必要がある。
+-----------------
+/* App/Models/Book.php */
+<?php
+namespace App\Models;
+use Illuminate\Databse\Eloquent\Factories\HasFactory;
+use Illuminate\Databas\Eloquent\Model;
+
+class Books extends Model
+{
+  ...
+  public function reviews()
+  {
+    return $this->hasMany(Review::class);
+  }
+}
+-----------------
+参照先のテーブルに応じて、reviewsのようなメソッドを定義する。
+1:n関係で取得する結果はは複数なので、メソッドも複数形になっている。
+配下ではhasManyメソッドで関連するモデルを宣言し、戻り値として返す。
+これでreviewsメソッドで関連するレビュー情報を取得できるようになる。
+==================================
+
+＠関係の逆を定義する
+hasManyメソッドによる定義は、主テーブル（books）から従テーブル（reviews）への
+参照。
+データベースにおいて片方向の関係というのはありえないので、一般的には従テーブル
+から主テーブルへの参照も準備しておくべき。
+これには、以下のようなコードで表す。
+-----------------
+/* App/Models/Reviews.php */
+<?php
+namespace App\Models;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
+
+class Review extends Model
+{
+  use HasFactory;
+  public function book()
+  {
+    return $this->belongsTo(Book::class);
+  }
+}
+-----------------
+参照先のテーブルに応じて、bookのようなメソッドを定義する。
+ひとつのレビューに結びつくのは一つの書籍情報なので、メソッド名は単数形。
+配下ではbelongsToメソッドで関連するモデルを宣言し、戻り値として返す。
+これでbookメソッドで関連する書籍情報を取得できるようになる。
+==================================
+
+＠リレーションの利用
+以下「id=1の書籍情報に紐づいたレビューを取得する」例。
+-----------------
+/* App/Controllers/RecordController.php */
+public function hasmany()
+{
+  return view('record.hasmany', [
+    'book'->Book::find(1)
+  ]);
+}
+-----------------
+/* resources/views/record/hasmany.blade.php */
+@extends('layouts.base')
+@section('title', 'リレーションの基本')
+@section('main')
+<h3>「{{ $book->title }}」のレビュー</he>
+<ul>
+@foreach($book->reviews as $rev)
+  <li>{{ $rev->body }}（{{ $rev->name }}）</li>
+@endforeach
+</ul>
+@endsection
+==================================
+
+Part 9 データベース連携（データの挿入／更新／削除）
+
+＠データの登録
+フォームから入力した値を元に、booksテーブルにレコードを挿入する。
+----------------------------------
+[1]アクション/テンプレートを準備する
+-----------------
+/* App/Http/Controllers/SaveController.php */
+use Illuminate\Http\Request;
+use App\Models\Book;
+...
+class SaveController extends Controller
+{
+  public function create()
+  {
+    return view('save.create');
+  }
   
-          
+  public function store(Request $req)
+  {
+    // a. モデルオブジェクトにデータを詰め替え＆保存
+    $b = new Book();
+    $b->fill($req->except('_token'))->save();
+    return redirect('save/create');
+  }    
+}
+-----------------
+/* resources/views/save/create.blade.php */
+@extends('layouts.base')
+@section('title', '書籍情報フォーム')
+@section('main')
+<form method="POST" action="/save">
+@csrf
+  <div class="pl-2">
+    <label id="isbn">ISBNコード：</label><br>
+    <input id="isbn" name="isbn" type="text"
+      size="15" vlaue="{{ old('isbn') }}">
+  </div>
+  <div class="pl-2">
+    <label id="title">書名：</label><br>
+    <input id="title" name="title" type="text"
+      size="30" value="{{ old('title') }}">
+  </div>
+  <div class="pl-2">
+    <label id="price">価格：</label><br>
+    <input id="price" name="price" type="text"
+      size="5" value="{{ old('price') }}">
+  </div>
+  <div class="pl-2">
+    <label id="publisher">出版社：</label><br>
+    <input id="publisher" name="publisher" type="text"
+      size="10" value="{{ old('publisher') }}">
+  </div>
+  <div class="pl-2">
+    <label id="published">刊行日：</label><br>
+    <input id="published" value="{{ old('published') }}">
+  </div>
+  <div class="pl-2">
+    <input type="submit" value="送信">
+  </div>
+</form>
+@endsection
+-----------------
+ポイントとなるのは、データを保存するコード。
+-----------------
+$b->fill($req->except('__token'))->save();
+-----------------
+Eloquentでデータを保存するには、モデルクラス（ここではBook）をnewして、fillメ
+ソッドでリクエストデータを詰め込むだけ。
+引数として、「要素名=>値」形式の配列を渡す。
+-----------------
+Requestオブジェクトのexceptメソッドは、指定された項目以外の値を「要素名=>値」
+形式の配列として取得する。
+__tokenは、@CSRFディレクティブによって生成されるワンタイムトークンで、モデル登
+録とは関係ないのであらかじめ取り除いておく。
+-----------------
+モデルオブジェクトを準備できたら、最後にsaveメソッドで、その内容がデータベース
+に保存される。
+fillメソッドはあくまでメモリ上の操作で、まだデータベースには反映されないので注
+意。
+----------------------------------
+＊fillメソッドの代わり
+fillは、リクエストデータをまとめてモデルに代入するのに便利なメソッド。
+このような機能をマスアサインメントという。
+必要であれば、以下のように、個々のフィールドに代入しても構わない。
+-----------------
+$b->isbn = $req->isbn;
+...
+$b->publisher = $req->pulisher;
+$b->save();
+----------------------------------
+[2]モデルを修正する
+/* App/Modles/Book.php */
+class Book extends Model
+{
+  protected $fillable = ['isbn', 'title', 'price', 'publisher', 'published'];
+  ...
+}
+-----------------
+$fillableプロパティは、fillメソッドによる割り当てを許可する項目を表す。
+マスアサインメントでは、リクエストデータによって書き換えることを想定していない
+項目まで、まとめて上書きされてしまう可能性がある。
+これをマスアサインメントの脆弱性と呼ぶ。
+これを避けるために、Eloquentでは$fillableプロパティで宣言されたプロパティだけ
+を割り当て許可している。
+$fillableプロパティで宣言されていない項目をfillメソッドで渡した場合、
+MassAsignmenteException例外が発生する。
+==================================
+

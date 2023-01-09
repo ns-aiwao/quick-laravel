@@ -3,7 +3,7 @@
   <head>
     <meta charset="uf-8">
     <!-- a. titleの置き場所 -->
-    <title>@yeild('title)</title>
+    <title>@yeild('title')</title>
     <!-- Bootstrapのインポート -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap5.1.3/dist/css/bootstrap.min.css">
   </head>
