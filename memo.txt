@@ -6018,6 +6018,134 @@ storeアクションと同じ。
 保存処理が成功した後は、redirectヘルパーで一覧画面にリダイレクトする。
 ==================================
 
+＠既存データの削除
+[1]ルート情報を追加する
+詳細画面を表示するためのsave/{id}ルート（GET）、〔削除〕ボタンによって呼び出さ
+れる削除処理を実行するsave/{id}ルート（DELET）を追加する。
+-----------------
+/* routes/web.php */
+Route::get('save/{id}', [SaveController::class, 'show']);
+Route::delete('save/{id}', [SaveController::class, 'destroy']);
+-----------------
+削除処理には、HTTP DELETEメソッド（＝リソースの削除）を利用するのが一般的。
+新規登録⇒HTTP POST
+更新⇒  HTTP PATCH
+削除⇒  HTTP DELETE
+----------------------------------
+[2]詳細画面を作成する（アクション＆テンプレート）
+-----------------
+/* SaveController.php */
+public function show($id)
+{
+  return view('save.show', [
+    $b=>Book::findOrFail($id)
+  ]);
+}
+-----------------
+/* resources/save/show.blade.php */
+@extends('layouts.base')
+@section('title', '書籍情報フォーム（詳細')
+@section('main')
+<form method="POST" action="/save/{{ $b->id }}">
+  @csrf
+  @method('DELETE')
+  <div class="pl-2">
+    <span id="isbn">ISBNコード：</span><br/>
+    {{ $b->isbn }}
+  </div>
+  <div class="pl-2">
+    <span id="title">書名：</span><br>
+    {{ $b->title }}
+  </div>    
+  <div class="pl-2">
+    <span id="price">価格：</span><br>
+    {{ $b->price }}
+  </div>
+  <div class="pl-2">
+    <span id="publisher">出版社：</span><br>
+  </div>
+  <div class="pl-2">
+    <span id="published">刊行日：</span><br>
+  </div>
+  <div class="pl-2">
+    <input type="submit" value="削除">
+  </div>
+</form>
+@endsection
+-----------------
+ルート情報に合わせて、@methodディレクティブで疑似的にHTTP DELETEを宣言しておく
+。
+----------------------------------
+[3]削除処理を作成する（アクション）
+指定されたレコードを削除するdestroyアクションを定義する。
+-----------------
+/* app/Http/Controllers/SaveController.php */
+public function destroy($id)
+{
+  $b = Book::findOrFail($id);
+  $b->delete();
+  return redirect('hello/list');
+}
+-----------------
+レコードを削除するには、findOrFailメソッドで目的のデータ（モデル）を取得した後
+、deleteメソッドを呼び出すだけ。
+削除後は、reidrectヘルパーで、一覧画面にリダイレクトする。
+==================================
+
+9.4　検証機能の実装
+
+＠検証機能の実装
+データを操作する際に欠かせないのは入力値の検証機能。
+----------------------------------
+[1]検証ルールを追加する
+検証ルールは、アクション、フォームリクエストなどで、宣言することもできるが、モ
+デルに関するものは、モデルにまとめておいたほうが見通しは良い。
+以下のように、staticプロパティとして$rulesを追加しておく。
+-----------------
+/* app/Models/Book.php */
+class Book extends Model
+{
+  protected $fillable = ['isbn', 'title', 'price', 'publisher', 'published'];
+  // a. 検証ルールを準備
+  public static $rules = [
+    'isbn' => 'required',
+    'title' => 'requried|string:max:10',
+    'price' => 'integer|min:0',
+    'publicher' => 'required|in:走跳社,テックCode,ジャパンIT,優丸システム,IT Emotion',
+    'published' => 'required|date'
+  ];
+  ...
+}
+-----------------
+検証ルールは、「項目名 => 検証ルール」形式の配列として表す。
+検証ルールは、「ルール名:引数|...」の形式で表し、引数がない場合は「:」以降は省
+略可能。複数のルールを適用する場合は、「|」でルール同士を連結する。
+主なルールは以下の通り：
+-----------------
+alpha    アルファベットのみ
+alpha_dash  アルファ／数値／ダッシュ／アンダースコア
+alpha_num  アルファ／数値のみ
+boolean  ブール値
+integer  整数値
+numeric  数値である
+date  日付値であること
+string  文字列である
+url  URLとして他d刺しい
+email  メールアドレスとして正しい
+file  アップロードされたファイルである
+image  アップロードファイルが画像形式である
+in:value,....  候補地のいずれかである
+between:min,max  min～maxであること（数値は値範囲、文字列は文字列長）
+digits:value  数値が指定のけたである
+digists_between:min,max  数値がmin～max桁である。
+distinct  重複した値がない（配列）
+after:date  日付が指定日以降である
+before:date  日付が指定日以前である
+required  値が存在し、空でない。
+
+
+
+
   
 
 

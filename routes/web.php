@@ -89,10 +89,10 @@ Route::get('record/hasmany', [RecordController::class, 'hasmany']);
 use App\Http\Controllers\SaveController;
 Route::get('save/create', [SaveController::class, 'create']);
 Route::post('save', [SaveController::class, 'store']);
-Route::get('/save/{id}/edit', [SaveController::class, 'edit']);
-Route::patch('/save/{id}', [SaveController::class, 'update']);
-//Route::get('save/create', 'SaveController@create');
-//Route::post('save', 'SaveController@store');
+Route::get('save/{id}/edit', [SaveController::class, 'edit']);
+Route::patch('save/{id}', [SaveController::class, 'update']);
+Route::get('save/{id}', [SaveController::class, 'show']);
+Route::delete('save/{id}', [SaveController::class, 'destroy']);
 
 Route::fallback(function() {
     return view('route.error');

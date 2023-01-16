@@ -5676,17 +5676,347 @@ dumpメソッドは、デバッグ文字列を出力した後も、そのまま�
 ==================================
 
 ＠リレーション
+一般的なデータベースでは、一つの情報を複数のテーブルに分割して表すのが一般的。
+例えば、書式情報と著者／レビューなどの情報をまとめてしまうことはない。
+書式／レビューと目的に応じてテーブルを分割し、キーで紐づける。
+Eloquentでは、リレーションを介したデータアクセスを簡単化する方法を提供している
+。
+==================================
 
+＠テーブル、モデルの準備
+リレーションはhasOne、hasMany、belongsToManyなどに分類できるが、ここではhasMan
+y関係を例とする。
+booksテーブルに関係するreviewsテーブルを用意する。
+-----------------
+id  BIGINT
+レビューid（主キー／自動連番）
+-----------------
+book_id  BIGINT（紐づく書籍（外部キー）
+-----------------
+name  VARCHAR  レビュアー名
+-----------------
+body  TEXT  レビュー本文
+-----------------
+create_at  TIMESTAMP  データ作成日
+-----------------
+update_at  TIMESTAMP  データ更新日
+-----------------
+注目すべきは、book_id列。
+Eloquentは、暗黙的に「参照先のモデル名_id」を外部キーとみなす。
+book_id列の値は、booksテーブルの主キー列（id）の値に対応していなければならない
+。
+==================================
 
-、
+＠モデルの定義
+以下のコマンドで、reviewsテーブルに対応するReviewモデルを生成する。
+-----------------
+>php artisan make:model Review
+...
+-----------------
+ただし、リレーションを扱うには、自動生成されたコードを少し編集する必要がある。
+-----------------
+/* App/Models/Book.php */
+<?php
+namespace App\Models;
+use Illuminate\Databse\Eloquent\Factories\HasFactory;
+use Illuminate\Databas\Eloquent\Model;
 
+class Books extends Model
+{
+  ...
+  public function reviews()
+  {
+    return $this->hasMany(Review::class);
+  }
+}
+-----------------
+参照先のテーブルに応じて、reviewsのようなメソッドを定義する。
+1:n関係で取得する結果はは複数なので、メソッドも複数形になっている。
+配下ではhasManyメソッドで関連するモデルを宣言し、戻り値として返す。
+これでreviewsメソッドで関連するレビュー情報を取得できるようになる。
+==================================
 
+＠関係の逆を定義する
+hasManyメソッドによる定義は、主テーブル（books）から従テーブル（reviews）への
+参照。
+データベースにおいて片方向の関係というのはありえないので、一般的には従テーブル
+から主テーブルへの参照も準備しておくべき。
+これには、以下のようなコードで表す。
+-----------------
+/* App/Models/Reviews.php */
+<?php
+namespace App\Models;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
 
+class Review extends Model
+{
+  use HasFactory;
+  public function book()
+  {
+    return $this->belongsTo(Book::class);
+  }
+}
+-----------------
+参照先のテーブルに応じて、bookのようなメソッドを定義する。
+ひとつのレビューに結びつくのは一つの書籍情報なので、メソッド名は単数形。
+配下ではbelongsToメソッドで関連するモデルを宣言し、戻り値として返す。
+これでbookメソッドで関連する書籍情報を取得できるようになる。
+==================================
 
+＠リレーションの利用
+以下「id=1の書籍情報に紐づいたレビューを取得する」例。
+-----------------
+/* App/Controllers/RecordController.php */
+public function hasmany()
+{
+  return view('record.hasmany', [
+    'book'->Book::find(1)
+  ]);
+}
+-----------------
+/* resources/views/record/hasmany.blade.php */
+@extends('layouts.base')
+@section('title', 'リレーションの基本')
+@section('main')
+<h3>「{{ $book->title }}」のレビュー</he>
+<ul>
+@foreach($book->reviews as $rev)
+  <li>{{ $rev->body }}（{{ $rev->name }}）</li>
+@endforeach
+</ul>
+@endsection
+==================================
 
+Part 9 データベース連携（データの挿入／更新／削除）
 
+＠データの登録
+フォームから入力した値を元に、booksテーブルにレコードを挿入する。
+----------------------------------
+[1]アクション/テンプレートを準備する
+-----------------
+/* App/Http/Controllers/SaveController.php */
+use Illuminate\Http\Request;
+use App\Models\Book;
+...
+class SaveController extends Controller
+{
+  public function create()
+  {
+    return view('save.create');
+  }
+  
+  public function store(Request $req)
+  {
+    // a. モデルオブジェクトにデータを詰め替え＆保存
+    $b = new Book();
+    $b->fill($req->except('_token'))->save();
+    return redirect('save/create');
+  }    
+}
+-----------------
+/* resources/views/save/create.blade.php */
+@extends('layouts.base')
+@section('title', '書籍情報フォーム')
+@section('main')
+<form method="POST" action="/save">
+@csrf
+  <div class="pl-2">
+    <label id="isbn">ISBNコード：</label><br>
+    <input id="isbn" name="isbn" type="text"
+      size="15" vlaue="{{ old('isbn') }}">
+  </div>
+  <div class="pl-2">
+    <label id="title">書名：</label><br>
+    <input id="title" name="title" type="text"
+      size="30" value="{{ old('title') }}">
+  </div>
+  <div class="pl-2">
+    <label id="price">価格：</label><br>
+    <input id="price" name="price" type="text"
+      size="5" value="{{ old('price') }}">
+  </div>
+  <div class="pl-2">
+    <label id="publisher">出版社：</label><br>
+    <input id="publisher" name="publisher" type="text"
+      size="10" value="{{ old('publisher') }}">
+  </div>
+  <div class="pl-2">
+    <label id="published">刊行日：</label><br>
+    <input id="published" value="{{ old('published') }}">
+  </div>
+  <div class="pl-2">
+    <input type="submit" value="送信">
+  </div>
+</form>
+@endsection
+-----------------
+ポイントとなるのは、データを保存するコード。
+-----------------
+$b->fill($req->except('__token'))->save();
+-----------------
+Eloquentでデータを保存するには、モデルクラス（ここではBook）をnewして、fillメ
+ソッドでリクエストデータを詰め込むだけ。
+引数として、「要素名=>値」形式の配列を渡す。
+-----------------
+Requestオブジェクトのexceptメソッドは、指定された項目以外の値を「要素名=>値」
+形式の配列として取得する。
+__tokenは、@CSRFディレクティブによって生成されるワンタイムトークンで、モデル登
+録とは関係ないのであらかじめ取り除いておく。
+-----------------
+モデルオブジェクトを準備できたら、最後にsaveメソッドで、その内容がデータベース
+に保存される。
+fillメソッドはあくまでメモリ上の操作で、まだデータベースには反映されないので注
+意。
+----------------------------------
+＊fillメソッドの代わり
+fillは、リクエストデータをまとめてモデルに代入するのに便利なメソッド。
+このような機能をマスアサインメントという。
+必要であれば、以下のように、個々のフィールドに代入しても構わない。
+-----------------
+$b->isbn = $req->isbn;
+...
+$b->publisher = $req->pulisher;
+$b->save();
+----------------------------------
+[2]モデルを修正する
+/* App/Modles/Book.php */
+class Book extends Model
+{
+  protected $fillable = ['isbn', 'title', 'price', 'publisher', 'published'];
+  ...
+}
+-----------------
+$fillableプロパティは、fillメソッドによる割り当てを許可する項目を表す。
+マスアサインメントでは、リクエストデータによって書き換えることを想定していない
+項目まで、まとめて上書きされてしまう可能性がある。
+これをマスアサインメントの脆弱性と呼ぶ。
+これを避けるために、Eloquentでは$fillableプロパティで宣言されたプロパティだけ
+を割り当て許可している。
+$fillableプロパティで宣言されていない項目をfillメソッドで渡した場合、
+MassAsignmenteException例外が発生する。
+==================================
 
+9.2 既存データの更新
 
+＠既存データの更新
+[1]ルート情報を追加する
+編集フォームを表示するためのsave/{id}/editルート、入力値に基づいて更新処理を実
+施する/save/{id}ルートを追加する。
+-----------------
+/* routes/web.php */
+Route::get('/save/{id}/edit, [SaveController::class, 'edit']);
+Route::patch('/save/{id}', [SaveController::class, 'update']);
+-----------------
+更新処理には、HTTP PATCHメソッド（=リソースの部分的な置換）を利用するのが一般
+的。
+これまで利用してきたPOSTは、リソースの新規作成を意味する。
+HTTP POSTでも動作はするが、意味的により正しいHTTPメソッドを選択することで、ル
+ートの役割が明確になる。
+----------------------------------
+＊resourceメソッド
+この節のサンプルで扱っているメソッドのルート定義は、resourceメソッドを利用する
+ことで、ひとつにまとめることもできる。
+Route::resource('/save', SaveController::class);
+----------------------------------
+[2]hello/listアクションを修正する
+/* resources/views/hello/list.blade.php */
+<table class="table">
+<tr>
+...
+<th>刊行日</th>
+<th><th>
+<tr>
+@foreach ($records as $record)
+<tr>
+...
+<td>{{ $record->published }}</td>
+<td>
+<a href="/save/{{ $record->id }}/edit">編集</a>｜
+<a href="/save/{{ $record->id }}">削除</a>
+</td>
+</tr>
+@endforeach
+</table>
+----------------------------------
+[3]編集フォームを作成する（アクションメソッド）
+/save/{id}/editルートによって呼び出される編集フォーム（アクションメソッド）を
+作成する。
+-----------------
+/* app/Http/Controllers/SaveController.php */
+public function edit($id)
+{
+  return view('save.edit', ['b'=>Book::findOrFail($id)]);
+}
+-----------------
+ルートパラメータidをキーにbooksテーブルを検索するのは、findOrFailメソッドの役
+割。
+findOrFailメソッドは、findメソッドとほぼ同じだが、唯一、目的のレコードが見つか
+らなった場合、ModelNotFoundExceptionを投げる。
+例外が処理されなかった場合、Laravelでは規定で404ページを出力する。
+取得したモデルオブジェクトは、後で編集フォームに反映できるようテンプレート変数
+に格納しておく。
+----------------------------------
+[4]編集フォームを作成する（テンプレート）
+/* resources/views/save/edit.blade.php */
+@extends('layouts.base)
+@section('title', '書籍情報フォーム（編集）')
+@secton('main')
+<form method="POST action="/save/{{$b->id}}">
+@csrf
+<!-- a.疑似的にHTTPメソッドを宣言 -->
+@method('PATCH')
+<div class="pl-2>
+<label id="isbn">ISBNコード：</label><br>
+<!-- b.現在値をテキストボックスに反映 -->
+<input id="isbn" name="isbn" type="text"
+  size="15! value="{{ old('isbn', $b->isbn) }}"
+>
+</div>
+...
+<div class="pl-2">
+<input type=submit" value="更新">
+</div>
+</form>
+@endsection
+-----------------
+ほぼcreate.blade.phpと同じだが、2点異なる点がある。
+まず、@methodディレクティブ。
+これは、以下のような隠しフィールドが生成される。
+-----------------
+<input type="hidden" name="_method" value="PATCH">
+-----------------
+HTML標準の<form>要素では、既定でHTTP GET/POSTにしか対応していない。
+が、save/{id}ルートはHTTP PATCHに紐づいている。
+そこで、@methodディレクティブで、便宜的にHTTP 
+PAtCHとして処理すべきことをLaravelに通知している。
+-----------------
+oldヘルパーの第二引数に、editアクションで取得したモデルオブジェクト経由で個々
+のフィールド値を取得し渡している。
+これにより、データベースの現在値をフォームに反映できる。
+----------------------------------
+[5]更新値をデータベースに書き戻す
+-----------------
+/* app/Http/Controllers/SaveController.php */
+public function update($req, $id)
+{
+  // 目的のデータを取得
+  $b = Book::findOrFail($id);
+  // 入力値でモデルを更新＆保存
+  $b->fill($req->except('_token', '_method')
+    ->save();
+  return redirect('hello/list');
+}
+-----------------
+モデルオブジェクトを生成しfillメソッドで値を詰め込み、保存するという流れは、
+storeアクションと同じ。
+が、
+・モデルオブジェクトは新規に生成する代わりにfindで取得している。
+・exceptメソッドは_tokenに加え_methodを除外している。
+点が異なる。
+更新でもデータベースに保存するのは、saveメソッドの役割。
+保存処理が成功した後は、redirectヘルパーで一覧画面にリダイレクトする。
+==================================
 
   
 
@@ -5697,5 +6027,3 @@ dumpメソッドは、デバッグ文字列を出力した後も、そのまま�
 
 
 
-  
-          

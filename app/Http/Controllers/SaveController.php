@@ -23,6 +23,28 @@ class SaveController extends Controller
     //指定された書籍情報を取得
     return view('save.edit', ['b'=>Book::findOrFail($id)]);
   }
+
+  public function update(Request $req, $id)
+  {
+      // 目的のデータを取得
+      $b = Book::findOrFail($id);
+      // 入力値でモデルを更新＆保存
+      $b->fill($req->except('_token', '_method'))->save();
+      return redirect('hello/list');
+  }
   
-    //
+  public function show($id)
+  {
+    return view('save.show', [
+        'b'=>Book::findOrFail($id),
+    ]);
+  }
+
+  public function destroy($id)
+  {
+    $b = Book::findOrFail($id);
+    $b->delete();
+    return redirect('hello/list');
+  }
+    
 }

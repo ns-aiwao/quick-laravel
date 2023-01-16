@@ -30,6 +30,5 @@
   <div class="pl-2">
     <input type="submit" value="送信">
   </div>
-  @method('PUT')
 </form>
 @endsection  
