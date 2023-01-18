@@ -6142,6 +6142,20 @@ distinct  重複した値がない（配列）
 after:date  日付が指定日以降である
 before:date  日付が指定日以前である
 required  値が存在し、空でない。
+regex:ptrn  正規表現にマッチする
+different:field  指定のフィールドと異なる
+exists:tbl,col  テーブルtblのcol列に値が存在する
+same:field  指定されたフィールドと同じ値である
+size:value  指定された値と同じサイズである（数値は整数値、文字列は文字列長、配
+列は要素数、ファイルはキロバイト）
+----------------------------------
+[2]検証を実証する
+検証ルールに基づいて検証処理を実行するには、validateメソッドを呼び出すだけ。
+-----------------
+/* app/Http/Controllers/SaveController.php */
+
+
+
 
 
 
